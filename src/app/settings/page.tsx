@@ -113,6 +113,12 @@ export default function SettingsPage() {
             onChange={(v) => updateProfile({ preferences: { ...prefs, askConfidence: v } })}
           />
           <Toggle
+            label="Explain wrong guesses with the study buddy"
+            hint="When you guessed and got it wrong, the study buddy explains the right answer and a way to remember it. Needs the free AI key below."
+            checked={prefs.autoExplain}
+            onChange={(v) => updateProfile({ preferences: { ...prefs, autoExplain: v } })}
+          />
+          <Toggle
             label="Reduce motion"
             hint="Your system's reduced-motion setting is always respected; this forces it on."
             checked={prefs.reducedMotion === "reduce"}

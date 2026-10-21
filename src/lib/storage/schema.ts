@@ -88,6 +88,7 @@ export function validateAppData(raw: unknown): AppData {
     preferences: {
       theme: prefs.theme === "light" ? "light" : "dark",
       askConfidence: prefs.askConfidence !== false,
+      autoExplain: prefs.autoExplain === true,
       reducedMotion: prefs.reducedMotion === "reduce" ? "reduce" : "system",
     },
     createdAt: isIso(p.createdAt) ? (p.createdAt as string) : new Date().toISOString(),
@@ -166,7 +167,7 @@ export function createInitialData(seedPriors: Record<string, SeedPrior>, now: Da
       selectedCertification: "comptia-secplus",
       examVersion: "SY0-701",
       studyGoal: { dailyQuestions: 15 },
-      preferences: { theme: "dark", askConfidence: true, reducedMotion: "system" },
+      preferences: { theme: "dark", askConfidence: true, autoExplain: false, reducedMotion: "system" },
       createdAt: now.toISOString(),
     },
     attempts: [],

@@ -12,6 +12,7 @@ import { QuestionCard } from "@/components/QuestionCard";
 import { SessionResults } from "@/components/SessionResults";
 import { Button, ButtonLink, Card, cx } from "@/components/ui";
 import { MODE_INFO } from "@/components/useStart";
+import { GuessExplainer } from "@/components/GuessExplainer";
 
 export default function SessionPage() {
   const { data, derived } = useStore();
@@ -228,6 +229,12 @@ function SessionRunner({ session }: { session: StudySession }) {
                 </div>
               </fieldset>
             )}
+
+            {data.profile.preferences.autoExplain &&
+              !existing.isCorrect &&
+              (existing.confidence === "educated" || existing.confidence === "random") && (
+                <GuessExplainer key={qid} question={question} attemptId={existing.attemptId} />
+              )}
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Button variant="ghost" onClick={() => goTo(index - 1)} disabled={index === 0}>

@@ -113,6 +113,8 @@ export interface Question {
 export interface UserPreferences {
   theme: "dark" | "light";
   askConfidence: boolean;
+  /** When a guess turns out wrong, the study buddy explains it right away (needs an AI key). */
+  autoExplain: boolean;
   reducedMotion: "system" | "reduce";
 }
 
