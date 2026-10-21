@@ -6,6 +6,7 @@ import { useStore } from "@/lib/store";
 import { EXAM_VERSIONS } from "@/lib/types";
 import { AiSettingsCard } from "@/components/AiSettingsCard";
 import { FileSyncCard } from "@/components/FileSyncCard";
+import { SyncCard } from "@/components/SyncCard";
 import { exams } from "@/content/catalog";
 import { DataError, parseImport, serializeExport } from "@/lib/storage/schema";
 import { Button, Card, CardTitle, PageHeader, cx } from "@/components/ui";
@@ -148,6 +149,7 @@ export default function SettingsPage() {
 
       <AiSettingsCard />
 
+      <SyncCard />
       <FileSyncCard />
 
       <Card className="mb-4" aria-labelledby="data-h">

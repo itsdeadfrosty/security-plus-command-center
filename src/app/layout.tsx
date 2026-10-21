@@ -2,11 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AppProvider } from "@/lib/store";
 import { FileSyncProvider } from "@/lib/storage/fileSync";
+import { SyncProvider } from "@/lib/storage/gistSync";
 import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "Security+ Command Center",
-  description: "Adaptive, local-first practice for CompTIA Security+ SY0-701. Not affiliated with CompTIA.",
+  description:
+    "Adaptive, local-first practice for CompTIA Security+ SY0-701. Not affiliated with CompTIA.",
 };
 
 export const viewport: Viewport = {
@@ -28,7 +30,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-dvh antialiased">
         <AppProvider>
           <FileSyncProvider>
-            <AppShell>{children}</AppShell>
+            <SyncProvider>
+              <AppShell>{children}</AppShell>
+            </SyncProvider>
           </FileSyncProvider>
         </AppProvider>
       </body>

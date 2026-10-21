@@ -178,6 +178,14 @@ export interface AppData {
   sessions: StudySession[];
   /** conceptId -> prior. Cleared per concept once real attempts exist (see mastery). */
   seedPriors: Record<string, SeedPrior>;
+  blitz: BlitzState;
+}
+
+/** Blitz drills never touch mastery; they only track which questions were drilled out of the pool. */
+export interface BlitzState {
+  /** Questions answered right 3 times in a blitz: no longer offered in blitzes. */
+  cleared: string[];
+  lastStartedAt?: string;
 }
 
 // ---------- Derived (never stored) ----------

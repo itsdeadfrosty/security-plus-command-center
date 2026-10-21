@@ -7,10 +7,11 @@ import { newId } from "@/lib/engine/time";
  *  v1 — early development format: sessions had no `retestQuestionIds` or
  *       `lastActiveAt`; confidence was "sure" | "guess".
  *  v2 — added session retests and lastActiveAt.
- *  v3 — current: profile.examVersion (SY0-701 / SY0-801) and the "circuit" mode.
+ *  v3 — profile.examVersion (SY0-701 / SY0-801) and the "circuit" mode.
+ *  v4 — current: blitz state (drilled-out questions, last blitz time).
  * Add a migration for every bump; never edit an old one.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 export const EXPORT_APP_ID = "security-plus-command-center";
 
 type Json = Record<string, unknown>;
@@ -36,6 +37,7 @@ const migrations: Record<number, Migration> = {
   },
   // v2 -> v3: existing learners were studying SY0-701.
   2: (data) => ({ ...data, schemaVersion: 3, profile: { ...(data.profile as Json), examVersion: "SY0-701" } }),
+  3: (data) => ({ ...data, schemaVersion: 4, blitz: { cleared: [] } }),
 };
 
 export function migrate(input: Json): Json {
@@ -144,7 +146,10 @@ export function validateAppData(raw: unknown): AppData {
   const seedIn = (data.seedPriors ?? {}) as Json;
   for (const [k, v] of Object.entries(seedIn)) if (v === "weak" || v === "strong") seedPriors[k] = v;
 
-  return { schemaVersion: SCHEMA_VERSION, profile, attempts, sessions, seedPriors };
+  const b = (data.blitz ?? {}) as Json;
+  const blitz = { cleared: isStrArr(b.cleared) ? b.cleared : [], lastStartedAt: isIso(b.lastStartedAt) ? (b.lastStartedAt as string) : undefined };
+
+  return { schemaVersion: SCHEMA_VERSION, profile, attempts, sessions, seedPriors, blitz };
 }
 
 function clampInt(x: unknown, min: number, max: number, fallback: number): number {
@@ -167,6 +172,7 @@ export function createInitialData(seedPriors: Record<string, SeedPrior>, now: Da
     attempts: [],
     sessions: [],
     seedPriors: { ...seedPriors },
+    blitz: { cleared: [] },
   };
 }
 

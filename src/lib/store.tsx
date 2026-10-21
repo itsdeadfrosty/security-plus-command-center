@@ -23,6 +23,7 @@ import { loadAppData, saveAppData } from "@/lib/storage/repository";
 import { createInitialData } from "@/lib/storage/schema";
 import type { StreakRecord } from "@/lib/types";
 import { DAY_MS } from "@/lib/engine/time";
+import { mergeAppData } from "@/lib/engine/blitz";
 
 const getQuestion = (id: string) => questionById.get(id);
 
@@ -55,6 +56,10 @@ interface Store {
   abandonSession(): void;
   updateProfile(patch: Partial<Omit<UserProfile, "id" | "createdAt">>): void;
   replaceData(data: AppData): void;
+  /** Merge progress from another device (sync); keeps everything from both sides. */
+  mergeData(remote: AppData): void;
+  startBlitz(): void;
+  clearBlitzQuestion(questionId: string): void;
   resetProgress(): void;
 }
 
@@ -78,6 +83,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Ask the browser not to evict saved progress (Safari clears unprotected site data after a week away).
+      void navigator.storage?.persist?.().catch(() => undefined);
       const adapter = await openBestAdapter();
       const result = await loadAppData(adapter, seedPriors, new Date());
       if (cancelled) return;
@@ -226,6 +233,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const replaceData = useCallback((next: AppData) => setData(next), []);
+  const mergeData = useCallback((remote: AppData) => setData((d) => mergeAppData(d, remote)), []);
+  const startBlitz = useCallback(() => setData((d) => ({ ...d, blitz: { ...d.blitz, lastStartedAt: new Date().toISOString() } })), []);
+  const clearBlitzQuestion = useCallback(
+    (qid: string) => setData((d) => (d.blitz.cleared.includes(qid) ? d : { ...d, blitz: { ...d.blitz, cleared: [...d.blitz.cleared, qid] } })),
+    [],
+  );
   const resetProgress = useCallback(() => {
     setData((d) => {
       const fresh = createInitialData(seedPriors, new Date());
@@ -250,6 +263,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     abandonSession,
     updateProfile,
     replaceData,
+    mergeData,
+    startBlitz,
+    clearBlitzQuestion,
     resetProgress,
   };
 

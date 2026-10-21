@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Target,
   X,
+  Zap,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useFileSync } from "@/lib/storage/fileSync";
@@ -26,6 +27,7 @@ const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/practice/", label: "Practice", icon: Target },
   { href: "/review/", label: "Review", icon: RotateCcw },
+  { href: "/blitz/", label: "Blitz", icon: Zap },
   { href: "/buddy/", label: "Study Buddy", icon: Bot },
   { href: "/challenges/", label: "Challenges", icon: Puzzle, planned: true },
   { href: "/exam/", label: "Exam Simulator", icon: ClipboardCheck, planned: true },
