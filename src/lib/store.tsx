@@ -1,8 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { AppData, Confidence, ConceptMastery, Question, StudyMode, StudySession, UserProfile } from "@/lib/types";
+import type { AppData, Confidence, ConceptMastery, Question, QuestionAttempt, StudyMode, StudySession, UserProfile } from "@/lib/types";
 import { PBQ_TYPES } from "@/lib/types";
+import { isAnswerCorrect } from "@/lib/engine/scoring";
 import { conceptById, conceptDomain, examContent, questionById, questionDomain, seedPriors, type ExamContent } from "@/content/catalog";
 import { computeReadiness, type Readiness } from "@/lib/engine/circuit";
 import { computeMastery } from "@/lib/engine/mastery";
@@ -47,8 +48,6 @@ interface Store {
   dismissWarning(): void;
   startSession(mode: StudyMode, focusConceptIds?: string[]): StudySession | null;
   answer(questionId: string, selected: string[], durationMs: number): void;
-  /** "I don't know": counts as a miss with no guess credit, flags it, and queues a retest. */
-  skip(questionId: string, durationMs: number): void;
   setConfidence(questionId: string, confidence: Confidence): void;
   goTo(index: number): void;
   toggleFlag(questionId: string): void;
@@ -177,7 +176,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const answer = useCallback(
-    (questionId: string, selected: string[], durationMs: number, skipped = false) => {
+    (questionId: string, selected: string[], durationMs: number) => {
       const question = getQuestion(questionId);
       if (!question) return;
       updateActive((s, d) => {
@@ -185,14 +184,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const t = new Date();
         const res = submitAnswer(s, question, selected, durationMs, t);
         let session = res.session;
-        if (skipped) {
-          res.attempt.confidence = "random";
-          session = {
-            ...session,
-            answers: { ...session.answers, [questionId]: { ...session.answers[questionId], confidence: "random" } },
-            flagged: session.flagged.includes(questionId) ? session.flagged : [...session.flagged, questionId],
-          };
-        }
         if (!res.attempt.isCorrect) {
           const retest = pickRetestQuestion(question, session.questionIds, examContent(d.profile.examVersion).questionsByConcept, d.attempts, t);
           if (retest) session = appendRetest(session, retest.id);
@@ -202,8 +193,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     [updateActive],
   );
-
-  const skip = useCallback((questionId: string, durationMs: number) => answer(questionId, [], durationMs, true), [answer]);
 
   const setConfidence = useCallback(
     (questionId: string, confidence: Confidence) => {
@@ -255,7 +244,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     startSession,
     answer,
     setConfidence,
-    skip,
     goTo,
     toggleFlag,
     finishSession,
@@ -275,9 +263,31 @@ export function useStore(): Store {
 }
 
 /** Concepts sorted by review priority (highest first). */
-export function rankedConcepts(mastery: Map<string, ConceptMastery>, now = new Date()) {
+/**
+ * Concepts of questions the learner flagged or skipped lead the review queue
+ * until that question is later answered correctly without guessing.
+ */
+export function flaggedConceptIds(data: AppData): Set<string> {
+  const latest = new Map<string, QuestionAttempt>();
+  for (const a of data.attempts) {
+    const prev = latest.get(a.questionId);
+    if (!prev || a.completedAt > prev.completedAt) latest.set(a.questionId, a);
+  }
+  const ids = new Set<string>();
+  for (const s of data.sessions)
+    for (const qid of s.flagged) {
+      const a = latest.get(qid);
+      const q = questionById.get(qid);
+      if (!q) continue;
+      const cleared = a && isAnswerCorrect(q, a.selectedAnswerIds) && a.confidence !== "educated" && a.confidence !== "random";
+      if (!cleared) for (const c of q.conceptIds) ids.add(c);
+    }
+  return ids;
+}
+
+export function rankedConcepts(mastery: Map<string, ConceptMastery>, now = new Date(), flagged: Set<string> = new Set()) {
   return [...mastery.values()]
-    .map((m) => ({ m, concept: conceptById.get(m.conceptId)!, priority: reviewPriority(m, now) }))
+    .map((m) => ({ m, concept: conceptById.get(m.conceptId)!, priority: reviewPriority(m, now) + (flagged.has(m.conceptId) ? 100 : 0), flagged: flagged.has(m.conceptId) }))
     .filter((x) => x.concept)
     .sort((a, b) => b.priority - a.priority);
 }

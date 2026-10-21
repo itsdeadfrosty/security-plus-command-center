@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ArrowRight, BookOpen, Bot, ChevronDown, Lightbulb, Scale, X } from "lucide-react";
-import { useStore, rankedConcepts } from "@/lib/store";
+import { useStore, rankedConcepts, flaggedConceptIds } from "@/lib/store";
 import { conceptById, conceptDomain } from "@/content/catalog";
 import { isInReviewQueue } from "@/lib/engine/selection";
 import type { ConceptMastery, Difficulty } from "@/lib/types";
@@ -21,7 +21,7 @@ const VIEWS: { id: View; label: string }[] = [
 const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—");
 
 export default function ReviewPage() {
-  const { derived } = useStore();
+  const { data, derived } = useStore();
   const now = useMemo(() => new Date(), []);
   // Deep link from question feedback: /review/#concept-id
   const [hashConcept] = useState(() => {
@@ -34,14 +34,14 @@ export default function ReviewPage() {
   const [selected, setSelected] = useState<string | null>(hashConcept);
 
   const { certification, questionsByConcept, version } = derived.exam;
-  const ranked = rankedConcepts(derived.mastery, now);
+  const ranked = rankedConcepts(derived.mastery, now, flaggedConceptIds(data));
   const rows = ranked
-    .filter(({ m, concept, priority }) => {
+    .filter(({ m, concept, priority, flagged }) => {
       if (domain !== "all" && conceptDomain(concept.id, version) !== domain) return false;
       if (difficulty !== "all" && !(questionsByConcept.get(concept.id) ?? []).some((q) => q.difficulty === difficulty)) return false;
       switch (view) {
         case "queue":
-          return isInReviewQueue(m, now);
+          return flagged || isInReviewQueue(m, now);
         case "weakest":
           return priority >= 60;
         case "missed":

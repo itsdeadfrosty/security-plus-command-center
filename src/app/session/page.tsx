@@ -41,7 +41,7 @@ const CONFIDENCE_OPTIONS: { value: Confidence; label: string }[] = [
 ];
 
 function SessionRunner({ session }: { session: StudySession }) {
-  const { answer, skip, setConfidence, goTo, toggleFlag, finishSession, data } = useStore();
+  const { answer, setConfidence, goTo, toggleFlag, finishSession, data } = useStore();
   const askConfidence = data.profile.preferences.askConfidence;
 
   // On first mount, jump to the first unanswered question (resume behaviour).
@@ -88,10 +88,13 @@ function SessionRunner({ session }: { session: StudySession }) {
     requestAnimationFrame(() => feedbackRef.current?.focus());
   }
 
+  /** Leave it unanswered, flag it for review, and move on (wrapping to the next unanswered one). */
   function skipQuestion() {
     if (!question || existing) return;
-    skip(question.id, Date.now() - startedAt.current);
-    requestAnimationFrame(() => feedbackRef.current?.focus());
+    if (!flagged) toggleFlag(qid);
+    const after = [...session.questionIds.slice(index + 1), ...session.questionIds.slice(0, index)];
+    const target = after.find((id) => !session.answers[id]);
+    if (target) goTo(session.questionIds.indexOf(target));
   }
 
   function next() {
@@ -184,7 +187,7 @@ function SessionRunner({ session }: { session: StudySession }) {
             </p>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={skipQuestion}>
-                Skip, I don&apos;t know
+                Skip
               </Button>
               <Button variant="primary" onClick={submit} disabled={!canSubmit(question, working)}>
                 Submit answer
@@ -204,14 +207,7 @@ function SessionRunner({ session }: { session: StudySession }) {
               </p>
             )}
 
-            {existing.selectedAnswerIds.length === 0 && (
-              <p className="flex items-center gap-2 rounded-lg bg-warning-soft px-3 py-2 text-sm">
-                <Flag className="size-4 text-warning" aria-hidden />
-                Skipped and flagged. This concept goes to the top of your review queue, and you&apos;ll see another scenario on it soon.
-              </p>
-            )}
-
-            {askConfidence && existing.selectedAnswerIds.length > 0 && (
+            {askConfidence && (
               <fieldset className="rounded-xl border border-line p-3">
                 <legend className="px-1 text-sm text-muted">How confident were you? (optional)</legend>
                 <div className="flex flex-wrap gap-2">
