@@ -160,10 +160,12 @@ async function streamGemini(
     const detail = await res.text().catch(() => "");
     if (res.status === 401 || res.status === 403 || (res.status === 400 && /API_KEY_INVALID|API key not valid/i.test(detail)))
       throw new BuddyError("Google rejected that API key. Check it in Settings.", "auth");
-    if (res.status !== 404 && res.status !== 429) throw new BuddyError(`Gemini returned an error (${res.status}).`, "other");
+    // 5xx means that model is overloaded right now; another one usually answers.
+    if (res.status !== 404 && res.status !== 429 && res.status < 500) throw new BuddyError(`Gemini returned an error (${res.status}).`, "other");
   }
   geminiStart = 0;
   if (lastStatus === 429) throw new BuddyError("You've used today's free Gemini allowance. It resets daily.", "rate");
+  if (lastStatus >= 500) throw new BuddyError("Google's AI servers are busy right now. Wait a minute and try again.", "network");
   throw new BuddyError("No Gemini model was available for this key. Try again later.", "other");
 }
 
