@@ -98,5 +98,6 @@ function safeSet(k: string, v: string) {
 function reloadTo(build: string) {
   const url = new URL(window.location.href);
   url.searchParams.set("v", build.slice(0, 8));
-  window.location.replace(url.toString());
+  // Short pause so the last save to IndexedDB finishes before the page reloads.
+  setTimeout(() => window.location.replace(url.toString()), 1500);
 }

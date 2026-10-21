@@ -47,6 +47,8 @@ interface Store {
   dismissWarning(): void;
   startSession(mode: StudyMode, focusConceptIds?: string[]): StudySession | null;
   answer(questionId: string, selected: string[], durationMs: number): void;
+  /** "I don't know": counts as a miss with no guess credit, flags it, and queues a retest. */
+  skip(questionId: string, durationMs: number): void;
   setConfidence(questionId: string, confidence: Confidence): void;
   goTo(index: number): void;
   toggleFlag(questionId: string): void;
@@ -175,7 +177,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const answer = useCallback(
-    (questionId: string, selected: string[], durationMs: number) => {
+    (questionId: string, selected: string[], durationMs: number, skipped = false) => {
       const question = getQuestion(questionId);
       if (!question) return;
       updateActive((s, d) => {
@@ -183,6 +185,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const t = new Date();
         const res = submitAnswer(s, question, selected, durationMs, t);
         let session = res.session;
+        if (skipped) {
+          res.attempt.confidence = "random";
+          session = {
+            ...session,
+            answers: { ...session.answers, [questionId]: { ...session.answers[questionId], confidence: "random" } },
+            flagged: session.flagged.includes(questionId) ? session.flagged : [...session.flagged, questionId],
+          };
+        }
         if (!res.attempt.isCorrect) {
           const retest = pickRetestQuestion(question, session.questionIds, examContent(d.profile.examVersion).questionsByConcept, d.attempts, t);
           if (retest) session = appendRetest(session, retest.id);
@@ -192,6 +202,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     [updateActive],
   );
+
+  const skip = useCallback((questionId: string, durationMs: number) => answer(questionId, [], durationMs, true), [answer]);
 
   const setConfidence = useCallback(
     (questionId: string, confidence: Confidence) => {
@@ -243,6 +255,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     startSession,
     answer,
     setConfidence,
+    skip,
     goTo,
     toggleFlag,
     finishSession,
