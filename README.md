@@ -173,7 +173,11 @@ To fix a question, edit it and bump `version`. Past answers are regraded against
 
 ## Your data
 
-Progress is stored only in this browser (IndexedDB, with localStorage or in-memory fallbacks and a warning). There's no account, no analytics, and no network calls except the optional study buddy. Clearing site data or switching devices means starting fresh, so use **Settings → Export progress** for backups.
+Progress is stored only in this browser (IndexedDB, with localStorage or in-memory fallbacks and a warning). There's no account, no analytics, and no network calls except the optional study buddy. Clearing site data or switching devices means starting fresh, so keep a backup:
+
+- **Settings → Save progress to a file** (Chrome/Edge desktop): pick a file once, for example in Documents, and the app keeps it updated as you study. After a browser restart, one click on *Resume saving* re-grants access. *Load from a file* restores it on another browser or computer.
+- **Safari / iPhone / iPad / Firefox:** the same card shows *Save a copy*, which opens the share sheet (choose *Save to Files*). *Import progress* loads it back.
+- **Export / Import progress** works in every browser.
 
 ## Project layout
 
@@ -189,5 +193,5 @@ src/
   lib/storage/         adapters, schema + migrations, repository
   lib/ai/              study buddy prompt, Claude streaming client, key settings
   lib/store.tsx        React context wiring engine + storage
-  test/                Vitest + Testing Library suites (53 tests)
+  test/                Vitest + Testing Library suites (55 tests)
 ```

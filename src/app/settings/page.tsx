@@ -5,6 +5,7 @@ import { Download, HardDrive, Moon, Sun, Upload, Trash2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { EXAM_VERSIONS } from "@/lib/types";
 import { AiSettingsCard } from "@/components/AiSettingsCard";
+import { FileSyncCard } from "@/components/FileSyncCard";
 import { exams } from "@/content/catalog";
 import { DataError, parseImport, serializeExport } from "@/lib/storage/schema";
 import { Button, Card, CardTitle, PageHeader, cx } from "@/components/ui";
@@ -147,6 +148,8 @@ export default function SettingsPage() {
 
       <AiSettingsCard />
 
+      <FileSyncCard />
+
       <Card className="mb-4" aria-labelledby="data-h">
         <CardTitle id="data-h" icon={<HardDrive className="size-4" aria-hidden />}>
           Your data
@@ -156,7 +159,7 @@ export default function SettingsPage() {
         </p>
         <p className="mb-4 text-sm text-muted">
           Progress stays on this device and is never sent anywhere. Clearing site data, using a private window, or switching devices or browsers
-          means starting fresh — export a backup regularly. Cross-device sync isn&apos;t available yet.
+          means starting fresh, so keep a save file (above) or export a backup regularly.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button onClick={exportProgress}>

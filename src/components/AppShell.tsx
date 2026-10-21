@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useFileSync } from "@/lib/storage/fileSync";
 import { cx } from "./ui";
 
 const NAV = [
@@ -42,6 +43,7 @@ function isActive(pathname: string, href: string) {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { data, derived, ready, warning, saveError, dismissWarning } = useStore();
+  const fileSync = useFileSync();
   // The "More" menu is tied to the page it was opened on, so navigating closes it.
   const [moreOpenOn, setMoreOpenOn] = useState<string | null>(null);
   const moreOpen = moreOpenOn === pathname;
@@ -125,6 +127,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <X className="size-4" />
               </button>
             )}
+          </div>
+        )}
+
+        {fileSync.status === "needs-permission" && (
+          <div role="status" className="mx-4 mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-accent/40 bg-accent-soft p-3 text-sm md:mx-8">
+            <p className="flex-1">Saving to {fileSync.fileName} is paused until you allow it again.</p>
+            <button type="button" onClick={() => void fileSync.resume()} className="rounded-lg bg-accent px-3 py-1.5 font-medium text-accent-fg">
+              Resume saving
+            </button>
           </div>
         )}
 

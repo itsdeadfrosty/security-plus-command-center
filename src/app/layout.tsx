@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AppProvider } from "@/lib/store";
+import { FileSyncProvider } from "@/lib/storage/fileSync";
 import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
@@ -26,7 +27,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-dvh antialiased">
         <AppProvider>
-          <AppShell>{children}</AppShell>
+          <FileSyncProvider>
+            <AppShell>{children}</AppShell>
+          </FileSyncProvider>
         </AppProvider>
       </body>
     </html>
