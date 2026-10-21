@@ -7,7 +7,7 @@ import { useStore, rankedConcepts } from "@/lib/store";
 import { conceptById, questionById } from "@/content/catalog";
 import { isAnswerCorrect } from "@/lib/engine/scoring";
 import { KICKOFF, BuddyError, streamBuddyReply, type BuddyContext, type ChatTurn } from "@/lib/ai/buddy";
-import { DEFAULT_AI, activeKey, loadAiSettings, modelLabel, providerOf, type AiSettings } from "@/lib/ai/settings";
+import { DEFAULT_AI, loadAiSettings, type AiSettings } from "@/lib/ai/settings";
 import { KeySetup } from "@/components/AiSettingsCard";
 import { Badge, Button, Card, PageHeader, cx, masteryTone } from "@/components/ui";
 import { SafeMarkdown } from "@/components/SafeMarkdown";
@@ -39,7 +39,7 @@ export default function BuddyPage() {
         subtitle="Talk through a concept you missed. It explains simply, gives you a memory hook, then checks you've got it."
       />
 
-      {!activeKey(settings) ? (
+      {!settings.geminiKey ? (
         <Card>
           <p className="mb-1 flex items-center gap-2 font-medium">
             <KeyRound className="size-5 text-accent" aria-hidden /> Turn on your study buddy (free, about a minute)
@@ -47,14 +47,7 @@ export default function BuddyPage() {
           <p className="mb-3 text-sm text-muted">
             It reviews what you missed with you and answers questions when you&apos;re stuck. Everything else in the app works without it.
           </p>
-          <KeySetup provider={providerOf(settings.model)} settings={settings} onSaved={setSettings} />
-          <p className="mt-3 text-xs text-muted">
-            Prefer Claude?{" "}
-            <Link href="/settings/#ai" className="text-accent underline">
-              Choose a model in Settings
-            </Link>
-            .
-          </p>
+          <KeySetup settings={settings} onSaved={setSettings} />
         </Card>
       ) : conceptId ? (
         <Chat key={conceptId} conceptId={conceptId} settings={settings} onBack={() => setConceptId(null)} />
@@ -187,7 +180,7 @@ function Chat({ conceptId, settings, onBack }: { conceptId: string; settings: Ai
           <p className="font-semibold">{concept.name}</p>
           <p className="text-xs text-muted">
             {ctx.missed.length ? `Using your ${Math.min(ctx.missed.length, 4)} most recent missed or guessed question(s)` : "No misses on record — general walkthrough"} ·{" "}
-            {modelLabel(settings.model)}
+            Google Gemini
           </p>
         </div>
         <div className="flex gap-2">

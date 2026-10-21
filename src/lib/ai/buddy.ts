@@ -1,6 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
 import type { Concept, ConceptMastery, ExamVersion, Question, QuestionAttempt } from "@/lib/types";
-import { providerOf, type AiSettings } from "./settings";
+import type { AiSettings } from "./settings";
 
 export interface ChatTurn {
   role: "user" | "assistant";
@@ -101,7 +100,7 @@ function systemText(ctx: BuddyContext): [string, string] {
   return [TUTOR_PROMPT, `Reference notes for this conversation:\n${buildReferenceNotes(ctx)}`];
 }
 
-/** Streams one tutor reply from whichever provider the learner chose. */
+/** Streams one tutor reply from Gemini using the learner's free key. */
 export function streamBuddyReply(
   settings: AiSettings,
   ctx: BuddyContext,
@@ -109,65 +108,7 @@ export function streamBuddyReply(
   onText: (delta: string) => void,
   signal?: AbortSignal,
 ): Promise<string> {
-  return providerOf(settings.model) === "google"
-    ? streamGemini(settings.geminiKey, ctx, history, onText, signal)
-    : streamClaude(settings, ctx, history, onText, signal);
-}
-
-/**
- * Claude, called directly from the browser with the learner's own key
- * (dangerouslyAllowBrowser is required for that and is acceptable here because
- * the key belongs to the person using the page).
- */
-async function streamClaude(
-  settings: AiSettings,
-  ctx: BuddyContext,
-  history: ChatTurn[],
-  onText: (delta: string) => void,
-  signal?: AbortSignal,
-): Promise<string> {
-  const client = new Anthropic({ apiKey: settings.apiKey, dangerouslyAllowBrowser: true, maxRetries: 2 });
-  const [prompt, notes] = systemText(ctx);
-  try {
-    const stream = client.beta.messages.stream(
-      {
-        model: settings.model,
-        max_tokens: 4096,
-        // Fixed system text first so repeated turns hit the prompt cache.
-        system: [
-          { type: "text", text: prompt },
-          { type: "text", text: notes },
-        ],
-        cache_control: { type: "ephemeral" },
-        output_config: { effort: "medium" },
-        // Server-side fallback if a model declines; the API picks the fallback by category.
-        ...(settings.model === "claude-haiku-5-5" ? {} : { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const }),
-        messages: history,
-      },
-      { signal },
-    );
-    let text = "";
-    for await (const event of stream) {
-      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-        text += event.delta.text;
-        onText(event.delta.text);
-      }
-    }
-    const final = await stream.finalMessage();
-    if (final.stop_reason === "refusal") {
-      throw new BuddyError("The model declined to answer that. Try rephrasing your question about the concept.", "refusal");
-    }
-    return text;
-  } catch (e) {
-    if (e instanceof BuddyError) throw e;
-    if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError)
-      throw new BuddyError("Your API key was rejected. Check it in Settings.", "auth");
-    if (e instanceof Anthropic.RateLimitError) throw new BuddyError("Rate limit reached. Wait a moment and try again.", "rate");
-    if (e instanceof Anthropic.APIUserAbortError) throw new BuddyError("Stopped.", "other");
-    if (e instanceof Anthropic.APIConnectionError) throw new BuddyError("Couldn't reach Claude. Check your connection.", "network");
-    if (e instanceof Anthropic.APIError) throw new BuddyError(`Claude returned an error (${e.status ?? "unknown"}).`, "other");
-    throw new BuddyError("Something went wrong talking to Claude.", "other");
-  }
+  return streamGemini(settings.geminiKey, ctx, history, onText, signal);
 }
 
 /**
@@ -222,7 +163,7 @@ async function streamGemini(
     if (res.status !== 404 && res.status !== 429) throw new BuddyError(`Gemini returned an error (${res.status}).`, "other");
   }
   geminiStart = 0;
-  if (lastStatus === 429) throw new BuddyError("You've used today's free Gemini allowance. It resets daily, or add a Claude key in Settings.", "rate");
+  if (lastStatus === 429) throw new BuddyError("You've used today's free Gemini allowance. It resets daily.", "rate");
   throw new BuddyError("No Gemini model was available for this key. Try again later.", "other");
 }
 

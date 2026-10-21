@@ -33,7 +33,7 @@ The app is a fully static export with no server or database, so it can also be h
 - **Vercel:** works with the default settings.
 - **GitHub Pages:** works too. Set `basePath` if you serve it from a sub-path.
 
-The optional AI study buddy calls Anthropic directly from the learner's browser using their own key, so hosting stays free and needs no secrets.
+The optional AI study buddy calls Google Gemini directly from the learner's browser using their own free key, so hosting stays free and needs no secrets.
 
 ## How it's meant to be used: the circuit
 
@@ -107,7 +107,7 @@ The dashboard recommends one of these based on your data.
 
 **Review.** Each concept card gives a plain-English definition, a practical example, "don't confuse with" contrasts, *Explain more*, why the concept is in your queue, *Test me with a new scenario*, and *Talk it through* (study buddy).
 
-**AI study buddy** (optional; free with a Google Gemini key, or bring a Claude key):
+**AI study buddy** (optional, free with a Google Gemini key):
 - Opens from Review, or from the feedback after any missed question.
 - Grounded in that concept's card and the exact questions you missed, including your wrong pick and whether you were sure.
 - Explains simply, gives a memory hook, checks your understanding, and can quiz you with fresh exam-style scenarios.
@@ -130,17 +130,11 @@ The dashboard recommends one of these based on your data.
 
 ## AI study buddy setup
 
-**Free (default): Google Gemini.** Open **Study Buddy**, click *Get a free key from Google* (aistudio.google.com/apikey), click *Create API key*, copy it, come back and tap *Paste key*. No credit card. A daily free limit applies, and Google may use free-tier chats to improve its products. The app tries Google's rolling `gemini-flash-latest` model first and falls back through recent Flash / Flash-Lite models if one is missing or its daily quota is used up.
+The study buddy runs on **Google Gemini with a free key**. Open **Study Buddy**, click *Get a free key from Google* (aistudio.google.com/apikey), click *Create API key*, copy it, come back and tap *Paste key*. No credit card is needed. A daily free limit applies, and Google may use free-tier chats to improve its products.
 
-**Paid (optional): Claude.** In **Settings → AI study buddy**, pick a Claude model and follow the link to create a key at platform.claude.com, then add credit under Billing. API use is pay-as-you-go and separate from a Claude Pro/Max subscription.
+The app tries Google's rolling `gemini-flash-latest` model first and falls back through recent Flash / Flash-Lite models if one is missing or its daily quota is used up.
 
-- **Sonnet 5.5:** best paid pick; clearest explanations.
-- **Haiku 5.5:** cheapest; plenty for definitions and quick quizzes.
-- **Opus 5.5:** most capable, usually more than this job needs.
-
-**How keys are handled.** Keys live only in that browser's localStorage, are never included in progress exports, and are sent only to the chosen provider (`generativelanguage.googleapis.com` or `api.anthropic.com`). Claude requests use the official `@anthropic-ai/sdk` with `dangerouslyAllowBrowser`, which is acceptable because each learner uses their own key on their own device. Don't paste a key on a shared computer.
-
-**Claude request details:** streaming, prompt caching of the system prompt and concept notes, and server-side refusal fallback (`fallbacks: "default"`) on Opus and Sonnet. Replies from either provider are rendered through a small markdown parser that never uses `innerHTML`.
+**How the key is handled.** The key lives only in that browser's localStorage, is never included in progress exports, and is sent only to `generativelanguage.googleapis.com`. Replies are rendered through a small markdown parser that never uses `innerHTML`.
 
 ## Adding content
 
@@ -189,7 +183,7 @@ src/
     secplus/           exams.ts (701 + 801), concepts/*, questions/*, seed priors
   lib/engine/          scoring, mastery, selection, circuit/readiness, session, streak, stats (pure, tested)
   lib/storage/         adapters, schema + migrations, repository
-  lib/ai/              study buddy prompt, Claude streaming client, key settings
+  lib/ai/              study buddy prompt, Gemini streaming client, key settings
   lib/store.tsx        React context wiring engine + storage
-  test/                Vitest + Testing Library suites (60 tests)
+  test/                Vitest + Testing Library suites (58 tests)
 ```

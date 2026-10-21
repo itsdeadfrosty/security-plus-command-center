@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseGeminiChunk, streamBuddyReply, BuddyError, type BuddyContext } from "@/lib/ai/buddy";
-import { activeKey, looksLikeGeminiKey, DEFAULT_AI } from "@/lib/ai/settings";
+import { looksLikeGeminiKey, DEFAULT_AI } from "@/lib/ai/settings";
 import { conceptById } from "@/content/catalog";
 
 const ctx: BuddyContext = { examVersion: "SY0-701", concept: conceptById.get("xss")!, contrastNames: [], mastery: undefined, missed: [] };
@@ -13,13 +13,6 @@ function sse(...chunks: object[]) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Gemini study buddy", () => {
-  it("defaults to the free Gemini option and needs its key", () => {
-    expect(DEFAULT_AI.model).toBe("gemini");
-    expect(activeKey(DEFAULT_AI)).toBe("");
-    expect(activeKey({ ...DEFAULT_AI, apiKey: "sk-ant-x" })).toBe("");
-    expect(activeKey({ ...DEFAULT_AI, geminiKey: "AIzaXYZ" })).toBe("AIzaXYZ");
-  });
-
   it("accepts Google-style keys and rejects junk", () => {
     expect(looksLikeGeminiKey("AIza" + "a".repeat(35))).toBe(true);
     expect(looksLikeGeminiKey("hello")).toBe(false);

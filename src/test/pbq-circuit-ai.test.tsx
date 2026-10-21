@@ -8,7 +8,6 @@ import { selectQuestions } from "@/lib/engine/selection";
 import { shuffledOptionIds } from "@/lib/engine/session";
 import { conceptById, conceptDomain, examContent, questionById, questionDomain } from "@/content/catalog";
 import { buildReferenceNotes } from "@/lib/ai/buddy";
-import { looksLikeApiKey } from "@/lib/ai/settings";
 import { SafeMarkdown } from "@/components/SafeMarkdown";
 import { parseImport } from "@/lib/storage/schema";
 import { attempt, local } from "./helpers";
@@ -145,11 +144,6 @@ describe("study buddy", () => {
     expect(notes).toContain(concept.summary);
     expect(notes).toContain(`Learner answered: ${wrong.text} (and felt sure)`);
     expect(notes).toContain("Often confused with SSRF");
-  });
-
-  it("validates key format before saving", () => {
-    expect(looksLikeApiKey("sk-ant-api03-abcdefghijklmnopqrstuvwxyz012345")).toBe(true);
-    expect(looksLikeApiKey("hello")).toBe(false);
   });
 
   it("renders model output as text, never as HTML", () => {
