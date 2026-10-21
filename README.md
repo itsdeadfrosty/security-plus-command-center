@@ -107,7 +107,7 @@ The dashboard recommends one of these based on your data.
 
 **Review.** Each concept card gives a plain-English definition, a practical example, "don't confuse with" contrasts, *Explain more*, why the concept is in your queue, *Test me with a new scenario*, and *Talk it through* (study buddy).
 
-**AI study buddy** (optional, bring your own key):
+**AI study buddy** (optional; free with a Google Gemini key, or bring a Claude key):
 - Opens from Review, or from the feedback after any missed question.
 - Grounded in that concept's card and the exact questions you missed, including your wrong pick and whether you were sure.
 - Explains simply, gives a memory hook, checks your understanding, and can quiz you with fresh exam-style scenarios.
@@ -130,19 +130,17 @@ The dashboard recommends one of these based on your data.
 
 ## AI study buddy setup
 
-1. Create an API key at [console.anthropic.com](https://console.anthropic.com) → API keys.
-2. In the app, open **Settings → AI study buddy**, paste the key, and pick a model:
-   - Claude Opus 5.5 is the default and gives the best explanations.
-   - Sonnet 5.5 and Haiku 5.5 are cheaper and faster.
-3. Open **Study Buddy** in the nav, or click *Talk it through* on any concept.
+**Free (default): Google Gemini.** Open **Study Buddy**, click *Get a free key from Google* (aistudio.google.com/apikey), click *Create API key*, copy it, come back and tap *Paste key*. No credit card. A daily free limit applies, and Google may use free-tier chats to improve its products. The app tries Google's rolling `gemini-flash-latest` model first and falls back through recent Flash / Flash-Lite models if one is missing or its daily quota is used up.
 
-**How the key is handled.** The key lives only in that browser's localStorage. It is never included in progress exports and is sent only to `api.anthropic.com`. The request uses the official `@anthropic-ai/sdk` with `dangerouslyAllowBrowser`. That is acceptable here because each learner uses their own key on their own device. Don't paste a key on a shared computer.
+**Paid (optional): Claude.** In **Settings → AI study buddy**, pick a Claude model and follow the link to create a key at platform.claude.com, then add credit under Billing. API use is pay-as-you-go and separate from a Claude Pro/Max subscription.
 
-**How a request is built**
-- **Streaming:** responses stream as they're generated.
-- **Prompt caching:** the system prompt plus concept notes is cached.
-- **Refusal fallback:** server-side fallback (`fallbacks: "default"`) is enabled for Opus and Sonnet, so if a model declines a turn, the API retries on a fallback model.
-- **Display:** replies are rendered as text through a small markdown parser that never uses `innerHTML`.
+- **Sonnet 5.5:** best paid pick; clearest explanations.
+- **Haiku 5.5:** cheapest; plenty for definitions and quick quizzes.
+- **Opus 5.5:** most capable, usually more than this job needs.
+
+**How keys are handled.** Keys live only in that browser's localStorage, are never included in progress exports, and are sent only to the chosen provider (`generativelanguage.googleapis.com` or `api.anthropic.com`). Claude requests use the official `@anthropic-ai/sdk` with `dangerouslyAllowBrowser`, which is acceptable because each learner uses their own key on their own device. Don't paste a key on a shared computer.
+
+**Claude request details:** streaming, prompt caching of the system prompt and concept notes, and server-side refusal fallback (`fallbacks: "default"`) on Opus and Sonnet. Replies from either provider are rendered through a small markdown parser that never uses `innerHTML`.
 
 ## Adding content
 
@@ -193,5 +191,5 @@ src/
   lib/storage/         adapters, schema + migrations, repository
   lib/ai/              study buddy prompt, Claude streaming client, key settings
   lib/store.tsx        React context wiring engine + storage
-  test/                Vitest + Testing Library suites (55 tests)
+  test/                Vitest + Testing Library suites (60 tests)
 ```

@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { BetaMessageParam } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 import { Bot, KeyRound, RotateCcw, Send, Square } from "lucide-react";
 import { useStore, rankedConcepts } from "@/lib/store";
 import { conceptById, questionById } from "@/content/catalog";
 import { isAnswerCorrect } from "@/lib/engine/scoring";
-import { KICKOFF, BuddyError, streamBuddyReply, type BuddyContext } from "@/lib/ai/buddy";
-import { loadAiSettings, type AiSettings } from "@/lib/ai/settings";
-import { Badge, Button, ButtonLink, Card, PageHeader, cx, masteryTone } from "@/components/ui";
+import { KICKOFF, BuddyError, streamBuddyReply, type BuddyContext, type ChatTurn } from "@/lib/ai/buddy";
+import { DEFAULT_AI, activeKey, loadAiSettings, modelLabel, providerOf, type AiSettings } from "@/lib/ai/settings";
+import { KeySetup } from "@/components/AiSettingsCard";
+import { Badge, Button, Card, PageHeader, cx, masteryTone } from "@/components/ui";
 import { SafeMarkdown } from "@/components/SafeMarkdown";
 
 interface Turn {
@@ -21,7 +21,7 @@ interface Turn {
 
 export default function BuddyPage() {
   const { derived } = useStore();
-  const [settings] = useState<AiSettings>(() => (typeof window === "undefined" ? { apiKey: "", model: "claude-opus-5-5" } : loadAiSettings()));
+  const [settings, setSettings] = useState<AiSettings>(() => (typeof window === "undefined" ? DEFAULT_AI : loadAiSettings()));
   const [conceptId, setConceptId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     const id = decodeURIComponent(window.location.hash.slice(1));
@@ -39,18 +39,22 @@ export default function BuddyPage() {
         subtitle="Talk through a concept you missed. It explains simply, gives you a memory hook, then checks you've got it."
       />
 
-      {!settings.apiKey ? (
+      {!activeKey(settings) ? (
         <Card>
-          <p className="mb-2 flex items-center gap-2 font-medium">
-            <KeyRound className="size-5 text-accent" aria-hidden /> Add your Claude API key to turn on the study buddy
+          <p className="mb-1 flex items-center gap-2 font-medium">
+            <KeyRound className="size-5 text-accent" aria-hidden /> Turn on your study buddy (free, about a minute)
           </p>
           <p className="mb-3 text-sm text-muted">
-            The buddy runs on Claude using your own key from console.anthropic.com. The key stays in this browser and is only sent to Anthropic.
-            A reply typically costs around a cent on Opus and far less on Haiku. Everything else in the app works without it.
+            It reviews what you missed with you and answers questions when you&apos;re stuck. Everything else in the app works without it.
           </p>
-          <ButtonLink href="/settings/#ai" variant="primary">
-            Set up in Settings
-          </ButtonLink>
+          <KeySetup provider={providerOf(settings.model)} settings={settings} onSaved={setSettings} />
+          <p className="mt-3 text-xs text-muted">
+            Prefer Claude?{" "}
+            <Link href="/settings/#ai" className="text-accent underline">
+              Choose a model in Settings
+            </Link>
+            .
+          </p>
         </Card>
       ) : conceptId ? (
         <Chat key={conceptId} conceptId={conceptId} settings={settings} onBack={() => setConceptId(null)} />
@@ -135,7 +139,7 @@ function Chat({ conceptId, settings, onBack }: { conceptId: string; settings: Ai
     setBusy(true);
     const controller = new AbortController();
     abortRef.current = controller;
-    const history: BetaMessageParam[] = next.map((t) => ({ role: t.role, content: t.text }));
+    const history: ChatTurn[] = next.map((t) => ({ role: t.role, content: t.text }));
     try {
       await streamBuddyReply(
         settings,
@@ -183,7 +187,7 @@ function Chat({ conceptId, settings, onBack }: { conceptId: string; settings: Ai
           <p className="font-semibold">{concept.name}</p>
           <p className="text-xs text-muted">
             {ctx.missed.length ? `Using your ${Math.min(ctx.missed.length, 4)} most recent missed or guessed question(s)` : "No misses on record — general walkthrough"} ·{" "}
-            {settings.model}
+            {modelLabel(settings.model)}
           </p>
         </div>
         <div className="flex gap-2">
