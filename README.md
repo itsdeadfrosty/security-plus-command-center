@@ -21,9 +21,13 @@ npm run dev          # http://localhost:3000
 | `npm run lint` | Run ESLint |
 | `npm run build` | Build a static site into `out/` |
 
+**Live app:** https://itsdeadfrosty.github.io/security-plus-command-center/
+
 ## Deploying (free)
 
-The app is a fully static export with no server or database. Run `npm run build` and host the `out/` folder:
+This repo deploys itself: every push to `main` runs the tests, builds, and publishes to GitHub Pages (`.github/workflows/deploy.yml`). The build sets `NEXT_PUBLIC_BASE_PATH` to the repo name, so the site works under the `/<repo>/` sub-path.
+
+The app is a fully static export with no server or database, so it can also be hosted elsewhere. Run `npm run build` and host the `out/` folder:
 
 - **Netlify / Cloudflare Pages:** build command `npm run build`, output directory `out`.
 - **Vercel:** works with the default settings.
