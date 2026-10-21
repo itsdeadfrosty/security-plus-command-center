@@ -5,8 +5,12 @@ import type { NextConfig } from "next";
 // Set NEXT_PUBLIC_BASE_PATH when hosting under a sub-path (GitHub Pages: /<repo>).
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
+// Identifies this build so open tabs can notice a newer deploy (see UpdateChecker).
+const buildId = process.env.GITHUB_SHA || "dev";
+
 const nextConfig: NextConfig = {
   output: "export",
+  env: { NEXT_PUBLIC_BUILD_ID: buildId },
   basePath,
   trailingSlash: true,
   images: { unoptimized: true },
