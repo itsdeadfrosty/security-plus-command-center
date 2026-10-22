@@ -209,6 +209,9 @@ export interface ConceptMastery {
   seed?: SeedPrior;
   /** Plain-language reasons behind the box, for the UI. */
   reasons: string[];
+  /** "Knew it" correct answers in a row, and how many clear the topic. */
+  streak?: number;
+  clearGoal?: number;
 }
 
 export interface StreakRecord {

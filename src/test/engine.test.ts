@@ -95,6 +95,19 @@ describe("mastery and review tracking", () => {
     expect(skipped.get("xss")!.box).toBeLessThan(4);
   });
 
+  it("makes the clearing question one of the topic's harder ones", () => {
+    const rank = { beginner: 0, intermediate: 1, exam: 2, advanced: 3 };
+    const [conceptId, qs] = [...questionsByConcept].find(([, list]) => new Set(list.map((q) => q.difficulty)).size >= 3)!;
+    const knew = (d: number) => attempt(qs[0], { correct: true, confidence: "knew", at: local(2026, 10, d) });
+    const atts = [knew(1), knew(2)];
+    const now = new Date(local(2026, 10, 20));
+    const m = mastery(atts);
+    expect(m.get(conceptId)!.streak).toBe(2);
+    const rest = qs.slice(1);
+    const picked = selectQuestions("quick", { questions: rest, attempts: atts, mastery: m, contrasts: new Map(), certification, domainOf, now, random: () => 0 });
+    expect(rank[picked[0].difficulty]).toBe(Math.max(...rest.map((q) => rank[q.difficulty])));
+  });
+
   it("stops emphasizing a concept answered confidently many times (e.g. smishing)", () => {
     const smish = questionsByConcept.get("smishing")!;
     const vish = questionsByConcept.get("vishing")!;

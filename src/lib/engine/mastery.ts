@@ -103,12 +103,11 @@ export function computeMastery(
     w.masteryLabel = labelFor(w);
     w.distinctQuestionsCorrect = w.correctQuestions.size;
     w.reasons = explain(w);
-    const { confidentCorrectQuestions: _a, correctQuestions: _b, streak: _c, stumbled: _d, ...plain } = w;
+    const { confidentCorrectQuestions: _a, correctQuestions: _b, stumbled: _c, ...plain } = w;
     void _a;
     void _b;
     void _c;
-    void _d;
-    result.set(id, plain);
+    result.set(id, { ...plain, clearGoal: w.stumbled ? CLEAR_STREAK_AFTER_STUMBLE : CLEAR_STREAK });
   }
   return result;
 }

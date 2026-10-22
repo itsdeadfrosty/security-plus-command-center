@@ -48,6 +48,8 @@ export interface SelectionContext {
   random?: () => number;
 }
 
+const DIFFICULTY_RANK: Record<Question["difficulty"], number> = { beginner: 0, intermediate: 1, exam: 2, advanced: 3 };
+
 interface Scored {
   q: Question;
   score: number;
@@ -89,6 +91,14 @@ function scoreQuestions(ctx: SelectionContext, focusConcepts?: Set<string>, unte
       if (ageDays < 1) score -= 40;
       else if (prev.isCorrect && prev.confidence !== "educated" && prev.confidence !== "random") score -= 25;
     }
+
+    // The answer that would clear a topic should be one of its harder questions,
+    // so a clear means the learner really has it.
+    const clincher = q.conceptIds.some((c) => {
+      const m = ctx.mastery.get(c);
+      return m?.streak && m.clearGoal && m.streak === m.clearGoal - 1;
+    });
+    if (clincher) score += (DIFFICULTY_RANK[q.difficulty] - 1) * 10;
 
     // Stop emphasizing concepts that are mastered and not due.
     const allMastered = q.conceptIds.every((c) => {
