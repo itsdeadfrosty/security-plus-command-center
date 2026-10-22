@@ -25,10 +25,10 @@ describe("blitz", () => {
     expect(pickBlitz(blitzPool(data, allQuestions))).toHaveLength(2);
   });
 
-  it("allows one blitz every 30 minutes", () => {
+  it("allows one blitz every 10 minutes", () => {
     const data = { ...base(), blitz: { cleared: [], lastStartedAt: "2026-10-02T10:00:00Z" } };
-    expect(blitzWaitMs(data, new Date("2026-10-02T10:10:00Z"))).toBe(BLITZ_COOLDOWN_MS - 10 * 60 * 1000);
-    expect(blitzWaitMs(data, new Date("2026-10-02T10:30:00Z"))).toBe(0);
+    expect(blitzWaitMs(data, new Date("2026-10-02T10:04:00Z"))).toBe(BLITZ_COOLDOWN_MS - 4 * 60 * 1000);
+    expect(blitzWaitMs(data, new Date("2026-10-02T10:10:00Z"))).toBe(0);
   });
 
   it("upgrades older saves with an empty blitz record", () => {

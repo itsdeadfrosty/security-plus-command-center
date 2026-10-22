@@ -52,7 +52,7 @@ export default function BlitzPage() {
           </li>
           <li>Questions keep coming back until you get each one right {BLITZ_WINS_NEEDED} times.</li>
           <li>Blitz answers don&apos;t count toward your scores or review queue. A question you finish leaves the blitz pool.</li>
-          <li>One blitz every 30 minutes.</li>
+          <li>One blitz every 10 minutes.</li>
         </ul>
         {!ready ? null : pool.length === 0 ? (
           <p className="text-sm">Nothing to blitz yet. Missed or guessed questions from practice show up here.</p>

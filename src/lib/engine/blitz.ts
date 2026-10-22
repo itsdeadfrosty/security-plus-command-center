@@ -4,7 +4,7 @@ import { isAnswerCorrect } from "./scoring";
 export const BLITZ_SIZE = 10;
 export const BLITZ_SECONDS = 8;
 export const BLITZ_WINS_NEEDED = 3;
-export const BLITZ_COOLDOWN_MS = 30 * 60 * 1000;
+export const BLITZ_COOLDOWN_MS = 10 * 60 * 1000;
 /** Ordering and matching need more than 8 seconds, so blitzes use quick-answer types only. */
 const BLITZ_TYPES = new Set<Question["type"]>(["single", "multiple", "truefalse"]);
 
