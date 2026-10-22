@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allQuestions, seedPriors } from "@/content/catalog";
+import { allQuestions, examContent, seedPriors } from "@/content/catalog";
 import { BLITZ_COOLDOWN_MS, blitzPool, blitzWaitMs, mergeAppData, pickBlitz } from "@/lib/engine/blitz";
 import { createInitialData, validateAppData } from "@/lib/storage/schema";
 import { attempt } from "./helpers";
@@ -22,7 +22,17 @@ describe("blitz", () => {
       blitz: { cleared: [cleared.id] },
     };
     expect(blitzPool(data, allQuestions).map((q) => q.id).sort()).toEqual([missed.id, guessed.id].sort());
-    expect(pickBlitz(blitzPool(data, allQuestions))).toHaveLength(2);
+    expect(pickBlitz(blitzPool(data, allQuestions)).ids).toHaveLength(2);
+  });
+
+  it("follows a question with one on its look-alike topic", () => {
+    const content = examContent("SY0-701");
+    const q = content.questions.find((x) => x.type === "single" && (content.contrasts.get(x.conceptIds[0]) ?? []).length)!;
+    const pick = pickBlitz([q], content.questions, content.contrasts, () => 0);
+    expect(pick.ids).toHaveLength(2);
+    expect(pick.ids[0]).toBe(q.id);
+    expect(content.contrasts.get(q.conceptIds[0])).toContain(pick.versus[q.id]);
+    expect(pick.extra).toEqual([pick.ids[1]]);
   });
 
   it("allows one blitz every 10 minutes", () => {

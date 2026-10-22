@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Timer, X, Zap } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { questionById } from "@/content/catalog";
+import { conceptById, questionById } from "@/content/catalog";
 import { isAnswerCorrect } from "@/lib/engine/scoring";
 import { BLITZ_SECONDS, BLITZ_SIZE, BLITZ_WINS_NEEDED, blitzPool, blitzWaitMs, pickBlitz } from "@/lib/engine/blitz";
 import { Button, Card, PageHeader, ProgressBar, cx } from "@/components/ui";
@@ -12,6 +12,8 @@ interface Run {
   queue: string[];
   wins: Record<string, number>;
   total: number;
+  versus: Record<string, string>;
+  extra: string[];
 }
 type Feedback = { correct: boolean; timedOut: boolean };
 
@@ -33,10 +35,10 @@ export default function BlitzPage() {
   const wait = blitzWaitMs(data, now);
 
   function start() {
-    const ids = pickBlitz(pool);
+    const { ids, versus, extra } = pickBlitz(pool, derived.exam.questions, derived.exam.contrasts);
     if (!ids.length || wait > 0) return;
     startBlitz();
-    setRun({ queue: ids, wins: {}, total: ids.length });
+    setRun({ queue: ids, wins: {}, total: ids.length, versus, extra });
   }
 
   if (run) return <BlitzRun run={run} setRun={setRun} onCleared={clearBlitzQuestion} />;
@@ -51,6 +53,7 @@ export default function BlitzPage() {
             Up to {BLITZ_SIZE} questions you missed or guessed, {BLITZ_SECONDS} seconds each.
           </li>
           <li>Questions keep coming back until you get each one right {BLITZ_WINS_NEEDED} times.</li>
+          <li>Look-alike rounds: a topic that&apos;s easy to mix up (like SIEM vs SOAR) comes right after, so you learn to tell them apart.</li>
           <li>Blitz answers don&apos;t count toward your scores or review queue. A question you finish leaves the blitz pool.</li>
           <li>One blitz every 10 minutes.</li>
         </ul>
@@ -102,7 +105,7 @@ function BlitzRun({ run, setRun, onCleared }: { run: Run; setRun(r: Run | null):
         const wins = { ...run.wins, [qid]: (run.wins[qid] ?? 0) + (feedback.correct ? 1 : 0) };
         const rest = run.queue.slice(1);
         const finished = wins[qid] >= BLITZ_WINS_NEEDED;
-        if (finished) onCleared(qid);
+        if (finished && !run.extra.includes(qid)) onCleared(qid);
         setSelected([]);
         setFeedback(null);
         setLeft(BLITZ_SECONDS * 1000);
@@ -159,6 +162,11 @@ function BlitzRun({ run, setRun, onCleared }: { run: Run; setRun(r: Run | null):
       </div>
       <Card className="max-w-3xl">
         <ProgressBar value={left} max={BLITZ_SECONDS * 1000} label="Time left" tone={left < 3000 ? "warning" : "accent"} />
+        {run.versus[qid] && (
+          <p className="mt-3 inline-flex rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent">
+            Look-alike: {conceptById.get(question.conceptIds[0])?.name} vs {conceptById.get(run.versus[qid])?.name}
+          </p>
+        )}
         {question.scenario && <p className="mt-4 text-sm text-muted">{question.scenario}</p>}
         <p className="mb-4 mt-3 font-medium">{question.stem}</p>
         {multi && <p className="mb-2 text-xs text-muted">Choose {question.correctAnswerIds.length}.</p>}

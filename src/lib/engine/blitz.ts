@@ -23,13 +23,58 @@ export function blitzPool(data: AppData, questions: Question[]): Question[] {
   });
 }
 
-export function pickBlitz(pool: Question[], random = Math.random): string[] {
-  const ids = pool.map((q) => q.id);
-  for (let i = ids.length - 1; i > 0; i--) {
+export interface BlitzPick {
+  ids: string[];
+  /** Question id -> the look-alike concept it is paired against. */
+  versus: Record<string, string>;
+  /** Look-alike questions added from outside the pool (finishing them doesn't change the pool). */
+  extra: string[];
+}
+
+function shuffle<T>(items: T[], random: () => number): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
-    [ids[i], ids[j]] = [ids[j], ids[i]];
+    [out[i], out[j]] = [out[j], out[i]];
   }
-  return ids.slice(0, BLITZ_SIZE);
+  return out;
+}
+
+/**
+ * Picks up to BLITZ_SIZE questions. Where a picked question's topic has a
+ * common look-alike (SIEM vs SOAR, IDS vs IPS), a question on the look-alike
+ * follows right after it, so the learner has to tell the two apart at speed.
+ */
+export function pickBlitz(
+  pool: Question[],
+  questions: Question[] = [],
+  contrasts: Map<string, string[]> = new Map(),
+  random = Math.random,
+): BlitzPick {
+  const byConcept = new Map<string, Question[]>();
+  for (const q of questions) if (BLITZ_TYPES.has(q.type)) byConcept.set(q.conceptIds[0], [...(byConcept.get(q.conceptIds[0]) ?? []), q]);
+  const ids: string[] = [];
+  const versus: Record<string, string> = {};
+  const extra: string[] = [];
+  const pairedConcepts = new Set<string>();
+  for (const q of shuffle(pool, random)) {
+    if (ids.length >= BLITZ_SIZE) break;
+    if (ids.includes(q.id)) continue;
+    ids.push(q.id);
+    const concept = q.conceptIds[0];
+    if (ids.length >= BLITZ_SIZE || pairedConcepts.has(concept)) continue;
+    for (const rival of shuffle(contrasts.get(concept) ?? [], random)) {
+      const other = shuffle(byConcept.get(rival) ?? [], random).find((x) => !ids.includes(x.id));
+      if (!other) continue;
+      ids.push(other.id);
+      versus[q.id] = rival;
+      versus[other.id] = concept;
+      if (!pool.some((p) => p.id === other.id)) extra.push(other.id);
+      pairedConcepts.add(concept).add(rival);
+      break;
+    }
+  }
+  return { ids, versus, extra };
 }
 
 /** Milliseconds until the next blitz is allowed (0 = now). */
