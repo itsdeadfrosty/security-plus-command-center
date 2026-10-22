@@ -77,19 +77,21 @@ describe("mastery and review tracking", () => {
     expect(isInReviewQueue(m, new Date(local(2026, 10, 3, 13)))).toBe(true);
   });
 
-  it("clears a topic answered right with 'knew it' on the first try", () => {
-    const m = mastery([attempt(xss[0], { correct: true, confidence: "knew", at: local(2026, 10, 1) })]).get("xss")!;
+  it("clears a topic after three 'knew it' answers in a row", () => {
+    const knew = (d: number, q = xss[0]) => attempt(q, { correct: true, confidence: "knew", at: local(2026, 10, d) });
+    expect(mastery([knew(1), knew(2)]).get("xss")!.box).toBeLessThan(4);
+    const m = mastery([knew(1), knew(2), knew(3)]).get("xss")!;
     expect(m.box).toBe(4);
     expect(m.masteryLabel).toBe("Mastered");
   });
 
-  it("clears a guessed topic only after three confident answers in a row", () => {
+  it("needs five in a row once the learner has stumbled on a topic", () => {
     const guess = attempt(xss[0], { correct: true, confidence: "educated", at: local(2026, 10, 1) });
     const knew = (d: number) => attempt(xss[0], { correct: true, confidence: "knew", at: local(2026, 10, d) });
-    expect(mastery([guess, knew(2), knew(3)]).get("xss")!.box).toBeLessThan(4);
-    const m = mastery([guess, knew(2), knew(3), knew(4)]).get("xss")!;
-    expect(m.box).toBe(4);
-    expect(m.masteryLabel).toBe("Mastered");
+    expect(mastery([guess, knew(2), knew(3), knew(4), knew(5)]).get("xss")!.box).toBeLessThan(4);
+    expect(mastery([guess, knew(2), knew(3), knew(4), knew(5), knew(6)]).get("xss")!.box).toBe(4);
+    const skipped = computeMastery([knew(2), knew(3), knew(4)], get, ids, {}, START, new Set(["xss"]));
+    expect(skipped.get("xss")!.box).toBeLessThan(4);
   });
 
   it("stops emphasizing a concept answered confidently many times (e.g. smishing)", () => {
