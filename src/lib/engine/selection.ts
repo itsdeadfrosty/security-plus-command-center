@@ -10,7 +10,8 @@ import { circuitStatus } from "./circuit";
  *   4. Previously misunderstood concepts still in low boxes
  *   5. Concepts due for review (more overdue = higher)
  *   6. Untested objectives
- * Mastered, not-yet-due concepts score near zero so they stop being emphasized.
+ * Mastered, not-yet-due concepts score near zero so they stop being emphasized;
+ * cleared ones are never due again.
  */
 export function reviewPriority(m: ConceptMastery, now: Date): number {
   const due = m.nextReviewAt ? new Date(m.nextReviewAt).getTime() <= now.getTime() : false;
@@ -92,7 +93,7 @@ function scoreQuestions(ctx: SelectionContext, focusConcepts?: Set<string>, unte
     // Stop emphasizing concepts that are mastered and not due.
     const allMastered = q.conceptIds.every((c) => {
       const m = ctx.mastery.get(c);
-      return m && m.box >= 4 && m.nextReviewAt && new Date(m.nextReviewAt) > ctx.now;
+      return m && m.box >= 4 && (!m.nextReviewAt || new Date(m.nextReviewAt) > ctx.now);
     });
     if (allMastered) score -= 50;
 

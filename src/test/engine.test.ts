@@ -83,6 +83,7 @@ describe("mastery and review tracking", () => {
     const m = mastery([knew(1), knew(2), knew(3)]).get("xss")!;
     expect(m.box).toBe(4);
     expect(m.masteryLabel).toBe("Mastered");
+    expect(m.nextReviewAt).toBeUndefined();
   });
 
   it("needs five in a row once the learner has stumbled on a topic", () => {

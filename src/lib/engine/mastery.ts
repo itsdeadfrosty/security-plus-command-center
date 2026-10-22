@@ -15,7 +15,8 @@ import { addDays } from "./time";
  *  - Clearing: three "knew it" correct answers in a row clear the topic
  *    (Mastered), so things the learner already knows leave the pool fast. Once
  *    the learner has stumbled on it (a miss, a guess, an unrated answer, or a
- *    skip), it takes five in a row, spaced further apart each time.
+ *    skip), it takes five in a row, spaced further apart each time. A cleared
+ *    topic is never scheduled again, so known material stops taking time.
  *
  * Each box maps to a review interval. Mastery is recomputed from the full attempt
  * history every time, so correcting a question's answer key automatically
@@ -149,6 +150,11 @@ function applyAttempt(m: Working, questionId: string, correct: boolean, attempt:
       }
       if (m.streak >= (m.stumbled ? CLEAR_STREAK_AFTER_STUMBLE : CLEAR_STREAK)) m.box = Math.max(m.box, MASTERED_BOX);
     }
+  }
+  // A cleared topic is done: no more reviews, so study time goes to what's left.
+  if (m.streak >= (m.stumbled ? CLEAR_STREAK_AFTER_STUMBLE : CLEAR_STREAK)) {
+    m.nextReviewAt = undefined;
+    return;
   }
   // Guesses always come back tomorrow, regardless of box.
   const days = m.lastResult === "correct-guess" ? 1 : REVIEW_INTERVAL_DAYS[m.box];
