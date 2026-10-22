@@ -126,6 +126,11 @@ export const GEMINI_MODELS = [
 ];
 let geminiStart = 0;
 
+/** Keep thinking short so replies start fast: Gemini 3 takes a level, 2.5 a token budget. */
+function quickThinking(model: string) {
+  return model.startsWith("gemini-2.5") ? { thinkingBudget: 512 } : { thinkingLevel: "low" };
+}
+
 async function streamGemini(
   key: string,
   ctx: BuddyContext,
@@ -133,13 +138,16 @@ async function streamGemini(
   onText: (delta: string) => void,
   signal?: AbortSignal,
 ): Promise<string> {
-  const body = JSON.stringify({
-    systemInstruction: { parts: systemText(ctx).map((text) => ({ text })) },
-    contents: history.map((t) => ({ role: t.role === "assistant" ? "model" : "user", parts: [{ text: t.content }] })),
-    generationConfig: { maxOutputTokens: 4096 },
-  });
+  const bodyFor = (model: string, think: boolean) =>
+    JSON.stringify({
+      systemInstruction: { parts: systemText(ctx).map((text) => ({ text })) },
+      contents: history.map((t) => ({ role: t.role === "assistant" ? "model" : "user", parts: [{ text: t.content }] })),
+      generationConfig: { maxOutputTokens: 4096, ...(think ? { thinkingConfig: quickThinking(model) } : {}) },
+    });
   let lastStatus = 0;
+  let think = true;
   for (let i = geminiStart; i < GEMINI_MODELS.length; i++) {
+    const body = bodyFor(GEMINI_MODELS[i], think);
     let res: Response;
     try {
       res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODELS[i]}:streamGenerateContent?alt=sse`, {
@@ -158,6 +166,12 @@ async function streamGemini(
     }
     lastStatus = res.status;
     const detail = await res.text().catch(() => "");
+    // A model that doesn't take the thinking setting: ask the same model again without it.
+    if (res.status === 400 && think && /thinking/i.test(detail)) {
+      think = false;
+      i--;
+      continue;
+    }
     if (res.status === 401 || res.status === 403 || (res.status === 400 && /API_KEY_INVALID|API key not valid/i.test(detail)))
       throw new BuddyError("Google rejected that API key. Check it in Settings.", "auth");
     // 5xx means that model is overloaded right now; another one usually answers.

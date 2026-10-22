@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bot, KeyRound, RotateCcw, Send, Square } from "lucide-react";
+import { Bot, KeyRound, RefreshCw, RotateCcw, Send, Square } from "lucide-react";
 import { useStore, rankedConcepts } from "@/lib/store";
 import { conceptById, questionById } from "@/content/catalog";
 import { isAnswerCorrect } from "@/lib/engine/scoring";
@@ -10,7 +10,7 @@ import { KICKOFF, BuddyError, streamBuddyReply, type BuddyContext, type ChatTurn
 import { DEFAULT_AI, loadAiSettings, type AiSettings } from "@/lib/ai/settings";
 import { KeySetup } from "@/components/AiSettingsCard";
 import { Badge, Button, Card, PageHeader, cx, masteryTone } from "@/components/ui";
-import { SafeMarkdown } from "@/components/SafeMarkdown";
+import { StreamingMarkdown } from "@/components/StreamingMarkdown";
 
 interface Turn {
   role: "user" | "assistant";
@@ -101,6 +101,7 @@ function Chat({ conceptId, settings, onBack }: { conceptId: string; settings: Ai
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [failed, setFailed] = useState<{ text: string; hidden: boolean }>();
   const abortRef = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -149,6 +150,7 @@ function Chat({ conceptId, settings, onBack }: { conceptId: string; settings: Ai
     } catch (e) {
       const msg = e instanceof BuddyError ? e.message : "Something went wrong.";
       setError(msg);
+      setFailed({ text, hidden });
       // Drop an empty assistant bubble, and the user's turn too so history stays valid.
       setTurns((cur) => {
         const last = cur[cur.length - 1];
@@ -222,7 +224,7 @@ function Chat({ conceptId, settings, onBack }: { conceptId: string; settings: Ai
               >
                 {t.role === "assistant" ? (
                   t.text ? (
-                    <SafeMarkdown text={t.text} />
+                    <StreamingMarkdown text={t.text} />
                   ) : (
                     <span className="text-muted">Thinking…</span>
                   )
@@ -237,8 +239,18 @@ function Chat({ conceptId, settings, onBack }: { conceptId: string; settings: Ai
       </div>
 
       {error && (
-        <p role="alert" className="mx-5 mb-2 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
-          {error}
+        <p role="alert" className="mx-5 mb-2 flex items-center gap-2 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
+          <span className="flex-1">{error}</span>
+          {failed && (
+            <button
+              type="button"
+              onClick={() => void send(failed.text, failed.hidden)}
+              disabled={busy}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-danger/40 px-2 py-1 text-xs font-medium hover:bg-danger/10"
+            >
+              <RefreshCw className="size-3.5" aria-hidden /> Try again
+            </button>
+          )}
         </p>
       )}
 
