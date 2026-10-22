@@ -17,6 +17,9 @@ import { addDays } from "./time";
  *    the learner has stumbled on it (a miss, a guess, an unrated answer, or a
  *    skip), it takes five in a row, spaced further apart each time. A cleared
  *    topic is never scheduled again, so known material stops taking time.
+ *  - Placement: when the learner has cleanly cleared two topics in the same
+ *    exam objective (and stumbled on none there), a new topic in that objective
+ *    clears on one confident answer instead of three.
  *
  * Each box maps to a review interval. Mastery is recomputed from the full attempt
  * history every time, so correcting a question's answer key automatically
@@ -30,12 +33,16 @@ const SEED_BOX: Record<SeedPrior, number> = { weak: 0, strong: 3 };
 
 const CLEAR_STREAK = 3;
 const CLEAR_STREAK_AFTER_STUMBLE = 5;
+const CLEAR_STREAK_PLACED = 1;
+const PLACEMENT_NEIGHBOURS = 2;
 
 interface Working extends ConceptMastery {
   /** "Knew it" correct answers in a row (anything else resets it). */
   streak: number;
   /** Ever missed, guessed, skipped, or answered without "knew it". */
   stumbled: boolean;
+  /** Placed by neighbouring topics: one confident answer clears it. */
+  placed: boolean;
   confidentCorrectQuestions: Set<string>;
   correctQuestions: Set<string>;
 }
@@ -56,6 +63,7 @@ function blank(conceptId: string, seed: SeedPrior | undefined, seedDate: string)
     reasons: [],
     streak: 0,
     stumbled: false,
+    placed: false,
     confidentCorrectQuestions: new Set(),
     correctQuestions: new Set(),
   };
@@ -77,7 +85,14 @@ export function computeMastery(
   seedDate: string,
   /** Concepts of questions the learner skipped or flagged. */
   skipped: Set<string> = new Set(),
+  /** Exam objective of a concept, used for placement. */
+  groupOf: (conceptId: string) => string | undefined = () => undefined,
 ): Map<string, ConceptMastery> {
+  const groups = new Map<string, string[]>();
+  for (const id of conceptIds) {
+    const g = groupOf(id);
+    if (g) groups.set(g, [...(groups.get(g) ?? []), id]);
+  }
   const state = new Map<string, Working>();
   for (const id of conceptIds) state.set(id, blank(id, seedPriors[id], seedDate));
   for (const id of skipped) {
@@ -94,6 +109,7 @@ export function computeMastery(
     for (const conceptId of question.conceptIds) {
       const m = state.get(conceptId) ?? { ...blank(conceptId, undefined, seedDate), stumbled: skipped.has(conceptId) };
       state.set(conceptId, m);
+      if (m.totalAttempts === 0 && !m.stumbled) m.placed = isPlaced(conceptId, groups.get(groupOf(conceptId) ?? "") ?? [], state);
       applyAttempt(m, question.id, correct, attempt);
     }
   }
@@ -103,13 +119,31 @@ export function computeMastery(
     w.masteryLabel = labelFor(w);
     w.distinctQuestionsCorrect = w.correctQuestions.size;
     w.reasons = explain(w);
-    const { confidentCorrectQuestions: _a, correctQuestions: _b, stumbled: _c, ...plain } = w;
+    const { confidentCorrectQuestions: _a, correctQuestions: _b, stumbled: _c, placed: _d, ...plain } = w;
     void _a;
     void _b;
     void _c;
-    result.set(id, { ...plain, clearGoal: w.stumbled ? CLEAR_STREAK_AFTER_STUMBLE : CLEAR_STREAK });
+    void _d;
+    result.set(id, { ...plain, clearGoal: clearGoal(w) });
   }
   return result;
+}
+
+function clearGoal(m: Working): number {
+  return m.stumbled ? CLEAR_STREAK_AFTER_STUMBLE : m.placed ? CLEAR_STREAK_PLACED : CLEAR_STREAK;
+}
+
+/** A topic is placed when its objective-mates show the learner already knows this area. */
+function isPlaced(conceptId: string, mates: string[], state: Map<string, Working>): boolean {
+  let clean = 0;
+  for (const id of mates) {
+    if (id === conceptId) continue;
+    const n = state.get(id);
+    if (!n || n.totalAttempts === 0) continue;
+    if (n.stumbled) return false;
+    if (n.streak >= CLEAR_STREAK) clean++;
+  }
+  return clean >= PLACEMENT_NEIGHBOURS;
 }
 
 function applyAttempt(m: Working, questionId: string, correct: boolean, attempt: QuestionAttempt) {
@@ -147,11 +181,11 @@ function applyAttempt(m: Working, questionId: string, correct: boolean, attempt:
         m.streak = 0;
         m.stumbled = true;
       }
-      if (m.streak >= (m.stumbled ? CLEAR_STREAK_AFTER_STUMBLE : CLEAR_STREAK)) m.box = Math.max(m.box, MASTERED_BOX);
+      if (m.streak >= clearGoal(m)) m.box = Math.max(m.box, MASTERED_BOX);
     }
   }
   // A cleared topic is done: no more reviews, so study time goes to what's left.
-  if (m.streak >= (m.stumbled ? CLEAR_STREAK_AFTER_STUMBLE : CLEAR_STREAK)) {
+  if (m.streak >= clearGoal(m)) {
     m.nextReviewAt = undefined;
     return;
   }
@@ -174,8 +208,9 @@ function explain(m: Working): string[] {
   else if (m.lastResult === "correct-guess") r.push("Last answer was a correct guess, so it doesn't count as mastery yet.");
   if (m.guessedCorrectAttempts > 0) r.push(`${m.guessedCorrectAttempts} correct answer(s) were guesses.`);
   const variety = m.confidentCorrectQuestions.size;
-  const need = m.stumbled ? CLEAR_STREAK_AFTER_STUMBLE : CLEAR_STREAK;
-  if (m.box >= MASTERED_BOX && m.streak >= need) r.push(`You knew it ${m.streak} times in a row, so this topic is cleared.`);
+  const need = clearGoal(m);
+  if (m.box >= MASTERED_BOX && m.streak >= need)
+    r.push(m.placed && !m.stumbled ? "You'd already cleared nearby topics, so one confident answer cleared this one." : `You knew it ${m.streak} times in a row, so this topic is cleared.`);
   else if (m.streak > 0) r.push(`Knew it ${m.streak} of ${need} times in a row needed to clear this topic.`);
   else if (m.box >= VARIETY_CAP_BOX && variety < 2)
     r.push("Answer a different scenario confidently to reach Mastered.");

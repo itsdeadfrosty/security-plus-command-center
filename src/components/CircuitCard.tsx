@@ -2,47 +2,46 @@
 
 import { Route } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { FIRST_TRY_MIN, READY_ACCURACY, READY_COVERAGE } from "@/lib/engine/circuit";
+import { READY_PASS_CHANCE } from "@/lib/engine/circuit";
 import { Badge, Button, Card, CardTitle, ProgressBar } from "./ui";
 import { useStartSession } from "./useStart";
 
-/** Circuit coverage + the readiness estimate. `detailed` adds the per-domain breakdown. */
+/** The pass track: estimated pass chance + how far along the learner is. `detailed` adds the per-domain breakdown. */
 export function CircuitCard({ detailed = false, className }: { detailed?: boolean; className?: string }) {
   const { derived } = useStore();
   const { start, message } = useStartSession();
   const r = derived.readiness;
-  const pct = Math.round(r.coverage * 100);
+  const pct = Math.round(r.passChance * 100);
+  const journey = r.answered + r.questionsToGo;
 
   return (
     <Card className={className} aria-labelledby="circuit-h">
       <CardTitle id="circuit-h" icon={<Route className="size-4" aria-hidden />}>
-        {derived.exam.version} circuit
+        {derived.exam.version} pass track
       </CardTitle>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-2xl font-semibold tabular-nums">{pct}% covered</p>
-          <p className="text-sm text-muted">
-            {r.clearedConcepts} of {r.totalConcepts} concepts proven · weighted by exam domain
-          </p>
+          <p className="text-2xl font-semibold tabular-nums">{pct}% pass chance</p>
+          <p className="text-sm text-muted">Target {Math.round(READY_PASS_CHANCE * 100)}% · weighted by exam domain</p>
         </div>
-        {r.ready ? <Badge tone="success">Readiness target met</Badge> : <Badge>Estimate, not an official score</Badge>}
+        {r.ready ? <Badge tone="success">Ready to book</Badge> : <Badge>Estimate, not an official score</Badge>}
       </div>
       <div className="my-3">
-        <ProgressBar value={pct} max={100} label="Circuit coverage" tone={r.coverage >= READY_COVERAGE ? "success" : "accent"} />
+        <ProgressBar value={journey ? r.answered : 0} max={journey || 1} label="Journey to ready" tone={r.ready ? "success" : "accent"} />
+        <p className="mt-1 text-xs tabular-nums text-muted">
+          {r.ready ? `${r.answered} questions done` : `${r.answered} done · about ${r.questionsToGo} to go`}
+        </p>
       </div>
       <dl className="grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-xl bg-surface-2 p-3">
-          <dt className="text-xs text-muted">Coverage target</dt>
-          <dd className="font-medium">{Math.round(READY_COVERAGE * 100)}%+ of the circuit</dd>
+          <dt className="text-xs text-muted">Topics locked in</dt>
+          <dd className="font-medium tabular-nums">
+            {r.clearedConcepts} / {r.totalConcepts}
+          </dd>
         </div>
         <div className="rounded-xl bg-surface-2 p-3">
-          <dt className="text-xs text-muted">First-try accuracy (new questions)</dt>
-          <dd className="font-medium tabular-nums">
-            {r.firstTry.accuracy === null ? "—" : `${Math.round(r.firstTry.accuracy * 100)}%`}{" "}
-            <span className="text-xs text-muted">
-              target {Math.round(READY_ACCURACY * 100)}% over {FIRST_TRY_MIN}+
-            </span>
-          </dd>
+          <dt className="text-xs text-muted">Expected exam score</dt>
+          <dd className="font-medium tabular-nums">{Math.round(r.expectedScore * 100)}%</dd>
         </div>
       </dl>
       <p className="mt-3 text-sm">{r.nextStep}</p>
@@ -59,7 +58,7 @@ export function CircuitCard({ detailed = false, className }: { detailed?: boolea
                   {d.cleared}/{d.total} · {d.needsWork} open
                 </span>
               </div>
-              <ProgressBar value={d.cleared} max={d.total} label={`${d.name} circuit coverage`} />
+              <ProgressBar value={d.cleared} max={d.total} label={`${d.name} topics locked in`} />
             </li>
           ))}
         </ul>
@@ -69,7 +68,7 @@ export function CircuitCard({ detailed = false, className }: { detailed?: boolea
         <Button variant="primary" onClick={() => start("circuit")}>
           Run the circuit
         </Button>
-        <span className="text-xs text-muted">A concept clears once you answer it correctly without guessing.</span>
+        <span className="text-xs text-muted">Topics you prove you know drop out, and nearby ones can clear faster.</span>
       </div>
       {message && <p className="mt-2 text-sm text-warning">{message}</p>}
     </Card>

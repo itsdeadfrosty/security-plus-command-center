@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { AppData, Confidence, ConceptMastery, Question, QuestionAttempt, StudyMode, StudySession, UserProfile } from "@/lib/types";
 import { PBQ_TYPES } from "@/lib/types";
 import { isAnswerCorrect } from "@/lib/engine/scoring";
-import { conceptById, conceptDomain, examContent, questionById, questionDomain, seedPriors, type ExamContent } from "@/content/catalog";
+import { conceptById, conceptDomain, conceptObjective, examContent, questionById, questionDomain, seedPriors, type ExamContent } from "@/content/catalog";
 import { computeReadiness, type Readiness } from "@/lib/engine/circuit";
 import { computeMastery } from "@/lib/engine/mastery";
 import { pickRetestQuestion, recommendMode, reviewPriority, selectQuestions, type Recommendation } from "@/lib/engine/selection";
@@ -113,14 +113,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const derived = useMemo<Derived>(() => {
     const exam = examContent(examVersion);
     const skipped = new Set(data.sessions.flatMap((s) => s.flagged.flatMap((qid) => getQuestion(qid)?.conceptIds ?? [])));
-    const all = computeMastery(data.attempts, getQuestion, exam.conceptIds, data.seedPriors, data.profile.createdAt, skipped);
+    const all = computeMastery(data.attempts, getQuestion, exam.conceptIds, data.seedPriors, data.profile.createdAt, skipped, (id) => conceptObjective(id, examVersion));
     const mastery = new Map(exam.conceptIds.map((id) => [id, all.get(id)!]));
     const days = buildDailyRecords(data.attempts, data.sessions);
     const examQuestions = new Map(exam.questions.map((q) => [q.id, q]));
     return {
       exam,
       mastery,
-      readiness: computeReadiness(exam.certification, exam.conceptIds, (id) => conceptDomain(id, examVersion), mastery, data.attempts, examQuestions),
+      readiness: computeReadiness(exam.certification, exam.conceptIds, (id) => conceptDomain(id, examVersion), mastery, data.attempts, examQuestions, (id) => conceptObjective(id, examVersion)),
       days,
       streak: summarizeStreak(days, now),
       recommendation: recommendMode(mastery, data.attempts.length, now),

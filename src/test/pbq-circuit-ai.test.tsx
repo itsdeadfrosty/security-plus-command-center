@@ -6,7 +6,7 @@ import { circuitStatus, computeReadiness } from "@/lib/engine/circuit";
 import { computeMastery } from "@/lib/engine/mastery";
 import { selectQuestions } from "@/lib/engine/selection";
 import { shuffledOptionIds } from "@/lib/engine/session";
-import { conceptById, conceptDomain, examContent, questionById, questionDomain } from "@/content/catalog";
+import { conceptById, conceptDomain, conceptObjective, examContent, questionById, questionDomain } from "@/content/catalog";
 import { buildReferenceNotes } from "@/lib/ai/buddy";
 import { SafeMarkdown } from "@/components/SafeMarkdown";
 import { parseImport } from "@/lib/storage/schema";
@@ -74,32 +74,58 @@ describe("exam versions and the circuit", () => {
     expect(examContent("SY0-701").conceptIds).not.toContain("prompt-injection");
   });
 
-  it("clears a concept on a confident correct answer and keeps guesses open", () => {
-    const q = examContent("SY0-701").questionsByConcept.get("ransomware")![0];
-    const run = (conf: "knew" | "random") =>
-      computeMastery([attempt(q, { correct: true, confidence: conf, at: local(2026, 10, 2) })], (id) => questionById.get(id), ["ransomware"], {}, local(2026, 10, 1)).get("ransomware");
-    expect(circuitStatus(run("knew"))).toBe("cleared");
-    expect(circuitStatus(run("random"))).toBe("needs-work");
+  it("clears a concept after three confident answers in a row and keeps guesses open", () => {
+    const qs = examContent("SY0-701").questionsByConcept.get("ransomware")!;
+    const run = (confs: ("knew" | "random")[]) =>
+      computeMastery(
+        confs.map((c, i) => attempt(qs[i % qs.length], { correct: true, confidence: c, at: local(2026, 10, 2 + i) })),
+        (id) => questionById.get(id),
+        ["ransomware"],
+        {},
+        local(2026, 10, 1),
+      ).get("ransomware");
+    expect(circuitStatus(run(["knew", "knew", "knew"]))).toBe("cleared");
+    expect(circuitStatus(run(["knew"]))).toBe("needs-work");
+    expect(circuitStatus(run(["random", "knew", "knew"]))).toBe("needs-work");
     expect(circuitStatus(undefined)).toBe("not-started");
   });
 
-  it("weights readiness by exam domain and requires first-try accuracy", () => {
+  it("places a topic after one confident answer once its neighbours are cleared", () => {
+    const exam = examContent("SY0-701");
+    const byObjective = new Map<string, string[]>();
+    for (const c of exam.conceptIds) {
+      const o = conceptObjective(c, "SY0-701");
+      if (o && exam.questionsByConcept.get(c)?.length) byObjective.set(o, [...(byObjective.get(o) ?? []), c]);
+    }
+    const group = [...byObjective.values()].find((g) => g.length >= 3)!;
+    const [a, b, target] = group;
+    let t = 0;
+    const atts = [a, a, a, b, b, b, target].map((c) => attempt(exam.questionsByConcept.get(c)![0], { correct: true, confidence: "knew", at: local(2026, 10, 2 + t++) }));
+    const m = computeMastery(atts, (id) => questionById.get(id), exam.conceptIds, {}, local(2026, 10, 1), new Set(), (id) => conceptObjective(id, "SY0-701"));
+    expect(circuitStatus(m.get(target))).toBe("cleared");
+  });
+
+  it("estimates pass chance from cleared topics, weighted by exam domain", () => {
     const exam = examContent("SY0-701");
     const qmap = new Map(exam.questions.map((q) => [q.id, q]));
-    // Answer one new question per concept correctly and confidently.
-    const atts = exam.conceptIds.flatMap((c, i) => {
-      const q = exam.questionsByConcept.get(c)?.[0];
-      return q ? [attempt(q, { correct: true, confidence: "knew", at: new Date(Date.UTC(2026, 9, 1, 0, i)).toISOString() })] : [];
-    });
-    const m = computeMastery(atts, (id) => questionById.get(id), exam.conceptIds, {}, local(2026, 9, 30));
-    const r = computeReadiness(exam.certification, exam.conceptIds, (id) => conceptDomain(id, "SY0-701"), m, atts, qmap);
-    expect(r.coverage).toBeCloseTo(1, 5);
-    expect(r.firstTry.accuracy).toBe(1);
-    expect(r.ready).toBe(true);
-
     const none = computeReadiness(exam.certification, exam.conceptIds, (id) => conceptDomain(id, "SY0-701"), new Map(), [], qmap);
     expect(none.coverage).toBe(0);
     expect(none.ready).toBe(false);
+    expect(none.passChance).toBeLessThan(0.05);
+    expect(none.questionsToGo).toBeGreaterThan(200);
+
+    // Clear every concept with three confident answers in a row.
+    let t = 0;
+    const atts = exam.conceptIds.flatMap((c) => {
+      const qs = (exam.questionsByConcept.get(c) ?? []).filter((q) => q.options.some((o) => !q.correctAnswerIds.includes(o.id)));
+      return qs.length ? [0, 1, 2].map((i) => attempt(qs[i % qs.length], { correct: true, confidence: "knew", at: new Date(Date.UTC(2026, 9, 1, 0, t++)).toISOString() })) : [];
+    });
+    const m = computeMastery(atts, (id) => questionById.get(id), exam.conceptIds, {}, local(2026, 9, 30));
+    const r = computeReadiness(exam.certification, exam.conceptIds, (id) => conceptDomain(id, "SY0-701"), m, atts, qmap);
+    expect(r.coverage).toBeGreaterThan(0.85); // a few concepts only have drag-and-drop questions
+    expect(r.passChance).toBeGreaterThan(0.9);
+    expect(r.ready).toBe(true);
+    expect(r.questionsToGo).toBe(0);
   });
 
   it("circuit mode only serves concepts that aren't cleared yet", () => {
