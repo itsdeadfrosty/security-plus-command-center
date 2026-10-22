@@ -77,11 +77,17 @@ describe("mastery and review tracking", () => {
     expect(isInReviewQueue(m, new Date(local(2026, 10, 3, 13)))).toBe(true);
   });
 
-  it("requires confident answers on different questions to reach Mastered", () => {
-    const same = [1, 2, 3, 4, 5].map((d) => attempt(xss[0], { correct: true, confidence: "knew", at: local(2026, 10, d) }));
-    expect(mastery(same).get("xss")!.box).toBe(3);
-    const varied = [...same, attempt(xss[1], { correct: true, confidence: "knew", at: local(2026, 10, 9) })];
-    const m = mastery(varied).get("xss")!;
+  it("clears a topic answered right with 'knew it' on the first try", () => {
+    const m = mastery([attempt(xss[0], { correct: true, confidence: "knew", at: local(2026, 10, 1) })]).get("xss")!;
+    expect(m.box).toBe(4);
+    expect(m.masteryLabel).toBe("Mastered");
+  });
+
+  it("clears a guessed topic only after three confident answers in a row", () => {
+    const guess = attempt(xss[0], { correct: true, confidence: "educated", at: local(2026, 10, 1) });
+    const knew = (d: number) => attempt(xss[0], { correct: true, confidence: "knew", at: local(2026, 10, d) });
+    expect(mastery([guess, knew(2), knew(3)]).get("xss")!.box).toBeLessThan(4);
+    const m = mastery([guess, knew(2), knew(3), knew(4)]).get("xss")!;
     expect(m.box).toBe(4);
     expect(m.masteryLabel).toBe("Mastered");
   });
