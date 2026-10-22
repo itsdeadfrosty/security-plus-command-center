@@ -16,6 +16,10 @@ import { architectureQuestions } from "./questions/q-architecture";
 import { operationsQuestions } from "./questions/q-operations";
 import { governanceQuestions } from "./questions/q-governance";
 import { pbqQuestions } from "./questions/q-pbq";
+import { sisterQuestionsA } from "./questions/sisters-a";
+import { sisterQuestionsB } from "./questions/sisters-b";
+import { sisterQuestionsC } from "./questions/sisters-c";
+import { sisterQuestionsD } from "./questions/sisters-d";
 
 // Register new concept and question files here.
 export const allConceptList = [
@@ -38,6 +42,10 @@ export const allQuestionList = [
   ...operationsQuestions,
   ...governanceQuestions,
   ...pbqQuestions,
+  ...sisterQuestionsA,
+  ...sisterQuestionsB,
+  ...sisterQuestionsC,
+  ...sisterQuestionsD,
 ];
 
 /**
