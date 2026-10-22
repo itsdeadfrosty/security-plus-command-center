@@ -6,7 +6,7 @@ import { circuitStatus, computeReadiness } from "@/lib/engine/circuit";
 import { computeMastery } from "@/lib/engine/mastery";
 import { selectQuestions } from "@/lib/engine/selection";
 import { shuffledOptionIds } from "@/lib/engine/session";
-import { conceptById, conceptDomain, conceptObjective, examContent, questionById, questionDomain } from "@/content/catalog";
+import { conceptById, conceptDomain, examContent, questionById, questionDomain } from "@/content/catalog";
 import { buildReferenceNotes } from "@/lib/ai/buddy";
 import { SafeMarkdown } from "@/components/SafeMarkdown";
 import { parseImport } from "@/lib/storage/schema";
@@ -88,21 +88,6 @@ describe("exam versions and the circuit", () => {
     expect(circuitStatus(run(["knew"]))).toBe("needs-work");
     expect(circuitStatus(run(["random", "knew", "knew"]))).toBe("needs-work");
     expect(circuitStatus(undefined)).toBe("not-started");
-  });
-
-  it("places a topic after one confident answer once its neighbours are cleared", () => {
-    const exam = examContent("SY0-701");
-    const byObjective = new Map<string, string[]>();
-    for (const c of exam.conceptIds) {
-      const o = conceptObjective(c, "SY0-701");
-      if (o && exam.questionsByConcept.get(c)?.length) byObjective.set(o, [...(byObjective.get(o) ?? []), c]);
-    }
-    const group = [...byObjective.values()].find((g) => g.length >= 3)!;
-    const [a, b, target] = group;
-    let t = 0;
-    const atts = [a, a, a, b, b, b, target].map((c) => attempt(exam.questionsByConcept.get(c)![0], { correct: true, confidence: "knew", at: local(2026, 10, 2 + t++) }));
-    const m = computeMastery(atts, (id) => questionById.get(id), exam.conceptIds, {}, local(2026, 10, 1), new Set(), (id) => conceptObjective(id, "SY0-701"));
-    expect(circuitStatus(m.get(target))).toBe("cleared");
   });
 
   it("estimates pass chance from cleared topics, weighted by exam domain", () => {

@@ -23,6 +23,8 @@ export function SessionResults({ session }: { session: StudySession }) {
   const time = attempts.reduce((s, a) => s + Math.min(a.durationMs, 5 * 60_000), 0);
   const missedConcepts = [...new Set(missed.flatMap((id) => questionById.get(id)?.conceptIds.slice(0, 1) ?? []))];
   const pct = answered.length ? Math.round((correct.length / answered.length) * 100) : 0;
+  // The circuit is an endless loop of 10-question labs.
+  const circuit = session.type === "circuit";
 
   return (
     <div className="mx-auto max-w-3xl animate-in">
@@ -61,14 +63,21 @@ export function SessionResults({ session }: { session: StudySession }) {
       </Card>
 
       <div className="flex flex-wrap gap-2">
+        {circuit && (
+          <Button variant="primary" onClick={() => start("circuit")}>
+            New lab <ArrowRight className="size-4" aria-hidden />
+          </Button>
+        )}
         {missed.length + guessedCorrect.length > 0 ? (
-          <ButtonLink href="/review/" variant="primary">
-            Review weak concepts <ArrowRight className="size-4" aria-hidden />
+          <ButtonLink href="/review/" variant={circuit ? "secondary" : "primary"}>
+            Review weak concepts {!circuit && <ArrowRight className="size-4" aria-hidden />}
           </ButtonLink>
         ) : null}
-        <Button variant={missed.length ? "secondary" : "primary"} onClick={() => start("quick")}>
-          Start another quick session
-        </Button>
+        {!circuit && (
+          <Button variant={missed.length ? "secondary" : "primary"} onClick={() => start("quick")}>
+            Start another quick session
+          </Button>
+        )}
         <ButtonLink href="/" variant="ghost">
           Back to dashboard
         </ButtonLink>

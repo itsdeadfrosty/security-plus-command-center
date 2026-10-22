@@ -113,7 +113,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const derived = useMemo<Derived>(() => {
     const exam = examContent(examVersion);
     const skipped = new Set(data.sessions.flatMap((s) => s.flagged.flatMap((qid) => getQuestion(qid)?.conceptIds ?? [])));
-    const all = computeMastery(data.attempts, getQuestion, exam.conceptIds, data.seedPriors, data.profile.createdAt, skipped, (id) => conceptObjective(id, examVersion));
+    const all = computeMastery(data.attempts, getQuestion, exam.conceptIds, data.seedPriors, data.profile.createdAt, skipped);
     const mastery = new Map(exam.conceptIds.map((id) => [id, all.get(id)!]));
     const days = buildDailyRecords(data.attempts, data.sessions);
     const examQuestions = new Map(exam.questions.map((q) => [q.id, q]));

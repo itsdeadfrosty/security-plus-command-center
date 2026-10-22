@@ -42,7 +42,7 @@ const CONFIDENCE_OPTIONS: { value: Confidence; label: string }[] = [
 ];
 
 function SessionRunner({ session }: { session: StudySession }) {
-  const { answer, setConfidence, goTo, toggleFlag, finishSession, data } = useStore();
+  const { answer, setConfidence, goTo, toggleFlag, finishSession, data, derived } = useStore();
   const askConfidence = data.profile.preferences.askConfidence;
 
   // On first mount, jump to the first unanswered question (resume behaviour).
@@ -71,6 +71,7 @@ function SessionRunner({ session }: { session: StudySession }) {
   const [whyFor, setWhyFor] = useState<string | null>(null);
   const showWhy = whyFor === qid;
   const setShowWhy = () => setWhyFor(qid);
+  const [primedFor, setPrimedFor] = useState<string | null>(null);
   const startedAt = useRef(0);
   const feedbackRef = useRef<HTMLDivElement>(null);
 
@@ -137,6 +138,11 @@ function SessionRunner({ session }: { session: StudySession }) {
   }
 
   const flagged = session.flagged.includes(qid);
+  // A topic the learner last missed gets a short explanation before the question.
+  const missedConcept = existing
+    ? undefined
+    : question.conceptIds.find((c) => derived.mastery.get(c)?.lastResult?.startsWith("incorrect"));
+  const primer = missedConcept && primedFor !== qid ? conceptById.get(missedConcept) : undefined;
   const retestAdded = existing && !existing.isCorrect && session.retestQuestionIds.length > 0 &&
     session.retestQuestionIds.some((id) => session.questionIds.indexOf(id) > index && !session.answers[id]);
 
@@ -162,6 +168,26 @@ function SessionRunner({ session }: { session: StudySession }) {
 
       <Navigator session={session} onGo={goTo} />
 
+      {primer && (
+        <Card as="div" className="mt-4 animate-in" key={`primer-${qid}`} aria-labelledby="primer-h">
+          <p className="text-xs font-medium uppercase tracking-wide text-warning">You missed this one last time</p>
+          <h2 id="primer-h" className="mt-1 text-lg font-semibold">
+            {primer.name}
+          </h2>
+          <p className="mt-2">{primer.summary}</p>
+          <p className="mt-2 text-sm text-muted">Example: {primer.example}</p>
+          {primer.contrasts?.map((c) => (
+            <p key={c.conceptId} className="mt-2 text-sm">
+              <span className="font-medium">Not to be confused with {conceptById.get(c.conceptId)?.name ?? c.conceptId}:</span> {c.distinction}
+            </p>
+          ))}
+          <Button className="mt-4" variant="primary" onClick={() => setPrimedFor(qid)} autoFocus>
+            Got it, show the question <ArrowRight className="size-4" aria-hidden />
+          </Button>
+        </Card>
+      )}
+
+      {!primer && (
       <Card as="div" className="mt-4 animate-in" key={qid}>
         <QuestionCard
           question={question}
@@ -248,6 +274,7 @@ function SessionRunner({ session }: { session: StudySession }) {
           </div>
         )}
       </Card>
+      )}
 
       {done > 0 && !allAnswered && (
         <div className="mt-4 text-center">
