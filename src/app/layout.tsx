@@ -3,6 +3,7 @@ import "./globals.css";
 import { AppProvider } from "@/lib/store";
 import { FileSyncProvider } from "@/lib/storage/fileSync";
 import { SyncProvider } from "@/lib/storage/gistSync";
+import { AccountProvider } from "@/lib/storage/cloudSync";
 import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
@@ -31,7 +32,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AppProvider>
           <FileSyncProvider>
             <SyncProvider>
-              <AppShell>{children}</AppShell>
+              <AccountProvider>
+                <AppShell>{children}</AppShell>
+              </AccountProvider>
             </SyncProvider>
           </FileSyncProvider>
         </AppProvider>

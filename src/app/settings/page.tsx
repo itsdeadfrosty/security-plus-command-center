@@ -7,6 +7,8 @@ import { EXAM_VERSIONS } from "@/lib/types";
 import { AiSettingsCard } from "@/components/AiSettingsCard";
 import { FileSyncCard } from "@/components/FileSyncCard";
 import { SyncCard } from "@/components/SyncCard";
+import { AccountCard } from "@/components/AccountCard";
+import { useSync } from "@/lib/storage/gistSync";
 import { exams } from "@/content/catalog";
 import { DataError, parseImport, serializeExport } from "@/lib/storage/schema";
 import { Button, Card, CardTitle, PageHeader, cx } from "@/components/ui";
@@ -20,6 +22,8 @@ const STORAGE_LABEL = {
 
 export default function SettingsPage() {
   const { data, updateProfile, replaceData, resetProgress, storageKind } = useStore();
+  // GitHub sync is superseded by accounts; keep it visible only where it's already on.
+  const gistOn = useSync().status !== "off";
   const prefs = data.profile.preferences;
   const fileRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<{ tone: "ok" | "error"; text: string }>();
@@ -155,7 +159,8 @@ export default function SettingsPage() {
 
       <AiSettingsCard />
 
-      <SyncCard />
+      <AccountCard />
+      {gistOn && <SyncCard />}
       <FileSyncCard />
 
       <Card className="mb-4" aria-labelledby="data-h">
@@ -166,8 +171,8 @@ export default function SettingsPage() {
           Stored in: <span className="font-medium">{STORAGE_LABEL[storageKind]}</span>
         </p>
         <p className="mb-4 text-sm text-muted">
-          Progress stays on this device and is never sent anywhere. Clearing site data, using a private window, or switching devices or browsers
-          means starting fresh, so keep a save file (above) or export a backup regularly.
+          Progress stays on this device unless you sign in, which also saves it to your account. Without an account, clearing site data, using a
+          private window, or switching devices or browsers means starting fresh, so keep a save file (above) or export a backup regularly.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button onClick={exportProgress}>
