@@ -7,7 +7,7 @@ import { useStore, rankedConcepts } from "@/lib/store";
 import { conceptById, questionById } from "@/content/catalog";
 import { isAnswerCorrect } from "@/lib/engine/scoring";
 import { KICKOFF, BuddyError, streamBuddyReply, type BuddyContext, type ChatTurn } from "@/lib/ai/buddy";
-import { DEFAULT_AI, loadAiSettings, type AiSettings } from "@/lib/ai/settings";
+import { useAiSettings, type AiSettings } from "@/lib/ai/settings";
 import { KeySetup } from "@/components/AiSettingsCard";
 import { Badge, Button, Card, PageHeader, cx, masteryTone } from "@/components/ui";
 import { StreamingMarkdown } from "@/components/StreamingMarkdown";
@@ -21,7 +21,7 @@ interface Turn {
 
 export default function BuddyPage() {
   const { derived } = useStore();
-  const [settings, setSettings] = useState<AiSettings>(() => (typeof window === "undefined" ? DEFAULT_AI : loadAiSettings()));
+  const [settings, setSettings] = useAiSettings();
   const [conceptId, setConceptId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     const id = decodeURIComponent(window.location.hash.slice(1));

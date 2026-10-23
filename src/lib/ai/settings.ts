@@ -1,8 +1,11 @@
 /**
- * Study-buddy settings. The learner's free Google AI Studio key lives only in
- * this browser's localStorage: it is never part of progress exports, never sent
- * anywhere except generativelanguage.googleapis.com, and can be removed at any time.
+ * Study-buddy settings. The learner's free Google AI Studio key lives in this
+ * browser's localStorage and, when they're signed in, in their own account
+ * document (see cloudSync). It is never part of progress exports, never sent to
+ * any AI service except generativelanguage.googleapis.com, and can be removed at any time.
  */
+import { useEffect, useState } from "react";
+
 export const GEMINI_KEY_URL = "https://aistudio.google.com/apikey";
 
 export interface AiSettings {
@@ -23,15 +26,30 @@ export function loadAiSettings(): AiSettings {
   }
 }
 
+/** Fired on window after every save; detail.fromCloud is true when the account sync made the change. */
+export const AI_CHANGED = "spcc-ai-changed";
+
 /** Saving also drops any key fields from older versions of the app. */
-export function saveAiSettings(s: AiSettings): boolean {
+export function saveAiSettings(s: AiSettings, fromCloud = false): boolean {
   try {
     if (!s.geminiKey) localStorage.removeItem(KEY);
     else localStorage.setItem(KEY, JSON.stringify({ geminiKey: s.geminiKey }));
+    window.dispatchEvent(new CustomEvent(AI_CHANGED, { detail: { fromCloud } }));
     return true;
   } catch {
     return false;
   }
+}
+
+/** Current settings, kept fresh when the key is saved elsewhere (another card, or the account sync). */
+export function useAiSettings(): [AiSettings, (s: AiSettings) => void] {
+  const [settings, setSettings] = useState<AiSettings>(() => (typeof window === "undefined" ? DEFAULT_AI : loadAiSettings()));
+  useEffect(() => {
+    const onChange = () => setSettings(loadAiSettings());
+    window.addEventListener(AI_CHANGED, onChange);
+    return () => window.removeEventListener(AI_CHANGED, onChange);
+  }, []);
+  return [settings, setSettings];
 }
 
 /** Google keys start with "AIza"; allow other shapes Google may issue, but catch obvious paste mistakes. */

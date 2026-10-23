@@ -9,7 +9,7 @@ import {
   streamBuddyReply,
   type BuddyContext,
 } from "@/lib/ai/buddy";
-import { loadAiSettings } from "@/lib/ai/settings";
+import { useAiSettings } from "@/lib/ai/settings";
 import type { Question } from "@/lib/types";
 import { StreamingMarkdown } from "./StreamingMarkdown";
 
@@ -29,7 +29,7 @@ export function GuessExplainer({
   attemptId: string;
 }) {
   const { data, derived } = useStore();
-  const [settings] = useState(() => loadAiSettings());
+  const [settings] = useAiSettings();
   const [text, setText] = useState("");
   const [error, setError] = useState<string>();
   const [tries, setTries] = useState(0);

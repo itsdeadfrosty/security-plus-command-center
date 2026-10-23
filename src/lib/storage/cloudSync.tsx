@@ -6,7 +6,8 @@
  * security rules let only that signed-in user read or write. Like the Gist sync,
  * every save reads the cloud copy, merges (nothing from either device is lost),
  * then writes the result back. Firebase keeps the passwords; the app never sees
- * them after sign-in.
+ * them after sign-in. The study buddy's Gemini key rides along in its own
+ * field (never inside the progress data, so it stays out of exports).
  */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
@@ -19,9 +20,10 @@ import {
   signOut as fbSignOut,
   type Auth,
 } from "firebase/auth";
-import { Bytes, doc, getDoc, getFirestore, serverTimestamp, setDoc, type Firestore } from "firebase/firestore";
+import { Bytes, deleteField, doc, getDoc, getFirestore, serverTimestamp, setDoc, type Firestore } from "firebase/firestore";
 import { useStore } from "@/lib/store";
 import { mergeAppData } from "@/lib/engine/blitz";
+import { AI_CHANGED, loadAiSettings, saveAiSettings } from "@/lib/ai/settings";
 import type { AppData } from "@/lib/types";
 import { parseImport, serializeExport } from "./schema";
 
@@ -82,17 +84,24 @@ async function gunzip(bytes: Uint8Array): Promise<string> {
   return new Response(stream).text();
 }
 
-async function readRemote(uid: string): Promise<AppData | null> {
+async function readRemote(uid: string): Promise<{ data: AppData | null; geminiKey: string }> {
   const snap = await getDoc(doc(firebase().db, "users", uid));
+  const key = snap.exists() ? snap.get("geminiKey") : undefined;
+  const geminiKey = typeof key === "string" ? key : "";
   const bytes = snap.exists() ? (snap.get("data") as Bytes | undefined) : undefined;
-  if (!bytes) return null;
+  if (!bytes) return { data: null, geminiKey };
   const text = await gunzip(bytes.toUint8Array());
-  return text.trim() ? parseImport(text) : null;
+  return { data: text.trim() ? parseImport(text) : null, geminiKey };
 }
 
+// Merge writes so progress and the key never overwrite each other.
 async function writeRemote(uid: string, data: AppData) {
   const bytes = await gzip(serializeExport(data, new Date()));
-  await setDoc(doc(firebase().db, "users", uid), { data: Bytes.fromUint8Array(bytes), updatedAt: serverTimestamp() });
+  await setDoc(doc(firebase().db, "users", uid), { data: Bytes.fromUint8Array(bytes), updatedAt: serverTimestamp() }, { merge: true });
+}
+
+async function writeRemoteKey(uid: string, geminiKey: string) {
+  await setDoc(doc(firebase().db, "users", uid), { geminiKey: geminiKey || deleteField() }, { merge: true });
 }
 
 export function AccountProvider({ children }: { children: ReactNode }) {
@@ -116,7 +125,11 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     (id: string) => {
       const run = async () => {
         try {
-          const remote = await readRemote(id);
+          const { data: remote, geminiKey } = await readRemote(id);
+          // The account's key wins (it's what was last saved anywhere); a key only on this device goes up.
+          const localKey = loadAiSettings().geminiKey;
+          if (geminiKey && geminiKey !== localKey) saveAiSettings({ geminiKey }, true);
+          else if (!geminiKey && localKey) await writeRemoteKey(id, localKey);
           const merged = remote ? mergeAppData(dataRef.current, remote) : dataRef.current;
           const json = JSON.stringify(merged);
           if (!remote || json !== JSON.stringify(remote)) await writeRemote(id, merged);
@@ -169,6 +182,17 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       clearInterval(timer);
     };
   }, [uid, sync]);
+
+  // Saving or removing the key here updates the account right away.
+  useEffect(() => {
+    if (!uid) return;
+    const onKey = (e: Event) => {
+      if ((e as CustomEvent<{ fromCloud: boolean }>).detail?.fromCloud) return;
+      writeRemoteKey(uid, loadAiSettings().geminiKey).catch((err) => setError(message(err, "Couldn't save the key to your account.")));
+    };
+    window.addEventListener(AI_CHANGED, onKey);
+    return () => window.removeEventListener(AI_CHANGED, onKey);
+  }, [uid]);
 
   // Push shortly after local changes.
   useEffect(() => {

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Bot, CheckCircle2, ClipboardPaste, ExternalLink, Eye, EyeOff } from "lucide-react";
-import { GEMINI_KEY_URL, loadAiSettings, looksLikeGeminiKey, saveAiSettings, type AiSettings } from "@/lib/ai/settings";
+import { GEMINI_KEY_URL, looksLikeGeminiKey, saveAiSettings, useAiSettings, type AiSettings } from "@/lib/ai/settings";
+import { useAccount } from "@/lib/storage/cloudSync";
 import { Button, Card, CardTitle, cx } from "./ui";
 
 const linkCls = "inline-flex items-center gap-1 font-medium text-accent underline";
@@ -40,7 +41,7 @@ export function KeySetup({ settings, onSaved }: { settings: AiSettings; onSaved(
   function remove() {
     const next = { ...settings, geminiKey: "" };
     saveAiSettings(next);
-    setStatus({ ok: true, text: "Key removed from this browser." });
+    setStatus({ ok: true, text: "Key removed." });
     onSaved(next);
   }
 
@@ -102,7 +103,8 @@ export function KeySetup({ settings, onSaved }: { settings: AiSettings; onSaved(
 }
 
 export function AiSettingsCard() {
-  const [saved, setSaved] = useState<AiSettings>(() => loadAiSettings());
+  const [saved, setSaved] = useAiSettings();
+  const signedIn = useAccount().status !== "signed-out";
   return (
     <Card className="mb-4" aria-labelledby="ai-h">
       <span id="ai" className="relative -top-20 block" aria-hidden />
@@ -111,7 +113,9 @@ export function AiSettingsCard() {
       </CardTitle>
       <p className="mb-3 text-sm text-muted">
         The study buddy reviews what you missed with you and answers questions when you&apos;re stuck. It runs on Google Gemini with a free key: no
-        credit card, and a daily limit applies. The key is stored only in this browser, sent only to Google, and never included in progress exports.
+        credit card, and a daily limit applies. {signedIn
+          ? "The key is saved in this browser and your account, so it follows you to any device you sign in on. It's sent only to Google and never included in progress exports."
+          : "The key is stored only in this browser (sign in to keep it on every device), sent only to Google, and never included in progress exports."}
         Google may use free-tier chats to improve its products, so don&apos;t type personal information.
       </p>
       <KeySetup settings={saved} onSaved={setSaved} />
