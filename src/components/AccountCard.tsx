@@ -63,22 +63,40 @@ export function AccountCard() {
           {account.status === "syncing" && <p className="mt-3 text-sm text-muted">Saving…</p>}
         </>
       ) : (
-        <form onSubmit={(e) => void submit(e)} className="space-y-3">
+        <form id="account-form" name="login" method="post" action="#" onSubmit={(e) => void submit(e)} className="space-y-3">
           <p className="text-sm text-muted">
             {mode === "sign-in" ? "Sign in" : "Make a free account"} to save your progress online and pick up on any device. Progress you already have here is
             kept and added to your account.
           </p>
           <label className="block">
             <span className="mb-1 block text-sm font-medium">Email</span>
-            <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
+            {/* "username" + name/id attributes are what iOS Password AutoFill and Bitwarden look for. */}
+            <input
+              id="username"
+              name="username"
+              type="email"
+              inputMode="email"
+              required
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputCls}
+            />
           </label>
           <label className="block">
             <span className="mb-1 block text-sm font-medium">Password</span>
             <input
+              id={mode === "sign-in" ? "current-password" : "new-password"}
+              name="password"
               type="password"
               required
               minLength={6}
               autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+              // Lets iOS suggest a strong password that Firebase will accept.
+              {...{ passwordrules: "minlength: 8; required: lower; required: upper; required: digit;" }}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={inputCls}
