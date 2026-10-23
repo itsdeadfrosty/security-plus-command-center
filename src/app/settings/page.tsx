@@ -22,8 +22,10 @@ const STORAGE_LABEL = {
 
 export default function SettingsPage() {
   const { data, updateProfile, replaceData, resetProgress, storageKind } = useStore();
-  // GitHub sync is superseded by accounts; keep it visible only where it's already on.
+  // GitHub sync is superseded by accounts. It stays open where it's already on, and
+  // anyone with an older sync key can still connect it to bring that progress in.
   const gistOn = useSync().status !== "off";
+  const [showGist, setShowGist] = useState(false);
   const prefs = data.profile.preferences;
   const fileRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<{ tone: "ok" | "error"; text: string }>();
@@ -160,7 +162,17 @@ export default function SettingsPage() {
       <AiSettingsCard />
 
       <AccountCard />
-      {gistOn && <SyncCard />}
+      {gistOn || showGist ? (
+        <SyncCard />
+      ) : (
+        <p className="-mt-2 mb-4 text-sm text-muted">
+          Used a GitHub sync key before?{" "}
+          <button type="button" onClick={() => setShowGist(true)} className="font-medium text-accent underline">
+            Connect it to bring that progress in
+          </button>
+          , then sign in above to keep it in your account.
+        </p>
+      )}
       <FileSyncCard />
 
       <Card className="mb-4" aria-labelledby="data-h">
