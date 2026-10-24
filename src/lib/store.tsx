@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { AppData, Confidence, ConceptMastery, Question, QuestionAttempt, StudyMode, StudySession, UserProfile } from "@/lib/types";
+import type { AppData, Confidence, ConceptMastery, MockExam, Question, QuestionAttempt, StudyMode, StudySession, UserProfile } from "@/lib/types";
 import { PBQ_TYPES } from "@/lib/types";
 import { isAnswerCorrect } from "@/lib/engine/scoring";
 import { conceptById, conceptDomain, conceptObjective, examContent, questionById, questionDomain, seedPriors, type ExamContent } from "@/content/catalog";
@@ -24,6 +24,7 @@ import { createInitialData } from "@/lib/storage/schema";
 import type { StreakRecord } from "@/lib/types";
 import { DAY_MS } from "@/lib/engine/time";
 import { mergeAppData } from "@/lib/engine/blitz";
+import { createMockExam, pickMockQuestions } from "@/lib/engine/mockExam";
 
 const getQuestion = (id: string) => questionById.get(id);
 
@@ -37,6 +38,7 @@ export interface Derived {
   streak: StreakSummary;
   recommendation: Recommendation;
   activeSession?: StudySession;
+  activeMock?: MockExam;
 }
 
 interface Store {
@@ -60,6 +62,9 @@ interface Store {
   mergeData(remote: AppData): void;
   startBlitz(): void;
   clearBlitzQuestion(questionId: string): void;
+  startMock(length: number): MockExam | null;
+  /** Change the in-progress practice exam (answers, position, flags, finishing). */
+  updateMock(fn: (m: MockExam) => MockExam): void;
   resetProgress(): void;
 }
 
@@ -125,6 +130,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       streak: summarizeStreak(days, now),
       recommendation: recommendMode(mastery, data.attempts.length, now),
       activeSession: data.sessions.find((s) => s.status === "active"),
+      activeMock: data.mockExams.find((m) => m.status === "active"),
     };
   }, [data, now, examVersion]);
 
@@ -240,6 +246,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (qid: string) => setData((d) => (d.blitz.cleared.includes(qid) ? d : { ...d, blitz: { ...d.blitz, cleared: [...d.blitz.cleared, qid] } })),
     [],
   );
+  const startMock = useCallback(
+    (length: number) => {
+      const exam = derived.exam;
+      // Save the last two practice exams' questions for last, so back-to-back exams differ.
+      const recent = new Set(data.mockExams.slice(-2).flatMap((m) => m.questionIds));
+      const ids = pickMockQuestions(exam.certification, exam.questions, (q) => questionDomain(q, exam.version), length, recent);
+      if (!ids.length) return null;
+      const mock = createMockExam(exam.version, ids, new Date());
+      setData((d) => ({
+        ...d,
+        mockExams: [...d.mockExams.map((m) => (m.status === "active" ? { ...m, status: "abandoned" as const } : m)), mock],
+      }));
+      return mock;
+    },
+    [data.mockExams, derived.exam],
+  );
+  const updateMock = useCallback(
+    (fn: (m: MockExam) => MockExam) =>
+      setData((d) => {
+        const active = d.mockExams.find((m) => m.status === "active");
+        if (!active) return d;
+        const next = { ...fn(active), lastActiveAt: new Date().toISOString() };
+        return { ...d, mockExams: d.mockExams.map((m) => (m.id === active.id ? next : m)) };
+      }),
+    [],
+  );
+
   const resetProgress = useCallback(() => {
     setData((d) => {
       const fresh = createInitialData(seedPriors, new Date());
@@ -267,6 +300,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     mergeData,
     startBlitz,
     clearBlitzQuestion,
+    startMock,
+    updateMock,
     resetProgress,
   };
 

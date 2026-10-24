@@ -1,4 +1,4 @@
-import type { AppData, Question, QuestionAttempt, StudySession } from "@/lib/types";
+import type { AppData, MockExam, Question, QuestionAttempt, StudySession } from "@/lib/types";
 import { isAnswerCorrect } from "./scoring";
 
 export const BLITZ_SIZE = 10;
@@ -104,6 +104,15 @@ export function mergeAppData(local: AppData, remote: AppData): AppData {
   const active = merged.filter((s) => s.status === "active").sort((a, b) => b.lastActiveAt.localeCompare(a.lastActiveAt));
   const stale = new Set(active.slice(1).map((s) => s.id));
 
+  // Practice exams: newest activity wins, and only one can be in progress.
+  const mocks = new Map<string, MockExam>();
+  for (const m of [...remote.mockExams, ...local.mockExams]) {
+    const prev = mocks.get(m.id);
+    if (!prev || m.lastActiveAt >= prev.lastActiveAt) mocks.set(m.id, m);
+  }
+  const mockList = [...mocks.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+  const liveMock = mockList.filter((m) => m.status === "active").sort((a, b) => b.lastActiveAt.localeCompare(a.lastActiveAt))[0];
+
   const fresh = local.attempts.length === 0 && remote.attempts.length > 0;
   const last = [local.blitz.lastStartedAt, remote.blitz.lastStartedAt].filter(Boolean).sort().pop();
   return {
@@ -113,5 +122,6 @@ export function mergeAppData(local: AppData, remote: AppData): AppData {
     attempts: [...attempts.values()].sort((a, b) => a.completedAt.localeCompare(b.completedAt)),
     sessions: merged.map((s) => (stale.has(s.id) ? { ...s, status: "abandoned" as const } : s)),
     blitz: { cleared: [...new Set([...local.blitz.cleared, ...remote.blitz.cleared])], lastStartedAt: last },
+    mockExams: mockList.map((m) => (m.status === "active" && m !== liveMock ? { ...m, status: "abandoned" as const } : m)),
   };
 }

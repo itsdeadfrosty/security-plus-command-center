@@ -28,7 +28,7 @@ const NAV = [
   { href: "/review/", label: "Review", icon: RotateCcw },
   { href: "/blitz/", label: "Blitz", icon: Zap },
   { href: "/buddy/", label: "Study Buddy", icon: Bot },
-  { href: "/exam/", label: "Exam Simulator", icon: ClipboardCheck, planned: true },
+  { href: "/exam/", label: "Practice Exam", icon: ClipboardCheck },
   { href: "/progress/", label: "Progress", icon: BarChart3 },
   { href: "/settings/", label: "Settings", icon: Settings },
 ];
@@ -79,7 +79,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
         </Link>
         <nav aria-label="Main" className="flex flex-col gap-1">
-          {NAV.map(({ href, label, icon: Icon, planned }) => {
+          {NAV.map(({ href, label, icon: Icon }) => {
             const active = isActive(pathname, href);
             return (
               <Link
@@ -93,7 +93,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               >
                 <Icon className="size-5" aria-hidden />
                 <span className="flex-1">{label}</span>
-                {planned && <span className="text-[10px] uppercase tracking-wide text-muted">Soon</span>}
               </Link>
             );
           })}
@@ -180,12 +179,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </ul>
         {moreOpen && (
           <ul id="more-menu" className="border-t border-line px-2 py-2">
-            {NAV.filter((n) => !MOBILE_PRIMARY.includes(n.href)).map(({ href, label, icon: Icon, planned }) => (
+            {NAV.filter((n) => !MOBILE_PRIMARY.includes(n.href)).map(({ href, label, icon: Icon }) => (
               <li key={href}>
                 <Link href={href} className="flex min-h-12 items-center gap-3 rounded-lg px-3 text-sm hover:bg-surface-2">
                   <Icon className="size-5 text-muted" aria-hidden />
                   <span className="flex-1">{label}</span>
-                  {planned && <span className="text-[10px] uppercase tracking-wide text-muted">Soon</span>}
                 </Link>
               </li>
             ))}

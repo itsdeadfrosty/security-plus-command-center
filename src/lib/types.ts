@@ -181,6 +181,25 @@ export interface AppData {
   /** conceptId -> prior. Cleared per concept once real attempts exist (see mastery). */
   seedPriors: Record<string, SeedPrior>;
   blitz: BlitzState;
+  /** Practice exams. Kept apart from attempts so they never move mastery or completion. */
+  mockExams: MockExam[];
+}
+
+/** A timed practice exam: answers are only checked when it's finished. */
+export interface MockExam {
+  id: string;
+  examVersion: ExamVersion;
+  startedAt: string;
+  /** When time runs out (ISO). */
+  deadline: string;
+  lastActiveAt: string;
+  finishedAt?: string;
+  status: "active" | "completed" | "abandoned";
+  questionIds: string[];
+  /** questionId -> current selection (same encoding as attempts). */
+  answers: Record<string, string[]>;
+  flagged: string[];
+  current: number;
 }
 
 /** Blitz drills never touch mastery; they only track which questions were drilled out of the pool. */

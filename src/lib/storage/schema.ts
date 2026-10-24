@@ -1,4 +1,4 @@
-import type { AppData, Confidence, ExamVersion, QuestionAttempt, SeedPrior, StudySession, UserProfile } from "@/lib/types";
+import type { AppData, Confidence, ExamVersion, MockExam, QuestionAttempt, SeedPrior, StudySession, UserProfile } from "@/lib/types";
 import { EXAM_VERSIONS } from "@/lib/types";
 import { newId } from "@/lib/engine/time";
 
@@ -8,10 +8,11 @@ import { newId } from "@/lib/engine/time";
  *       `lastActiveAt`; confidence was "sure" | "guess".
  *  v2 — added session retests and lastActiveAt.
  *  v3 — profile.examVersion (SY0-701 / SY0-801) and the "circuit" mode.
- *  v4 — current: blitz state (drilled-out questions, last blitz time).
+ *  v4 — blitz state (drilled-out questions, last blitz time).
+ *  v5 — current: practice exams (mockExams).
  * Add a migration for every bump; never edit an old one.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 export const EXPORT_APP_ID = "security-plus-command-center";
 
 type Json = Record<string, unknown>;
@@ -38,6 +39,7 @@ const migrations: Record<number, Migration> = {
   // v2 -> v3: existing learners were studying SY0-701.
   2: (data) => ({ ...data, schemaVersion: 3, profile: { ...(data.profile as Json), examVersion: "SY0-701" } }),
   3: (data) => ({ ...data, schemaVersion: 4, blitz: { cleared: [] } }),
+  4: (data) => ({ ...data, schemaVersion: 5, mockExams: [] }),
 };
 
 export function migrate(input: Json): Json {
@@ -150,7 +152,30 @@ export function validateAppData(raw: unknown): AppData {
   const b = (data.blitz ?? {}) as Json;
   const blitz = { cleared: isStrArr(b.cleared) ? b.cleared : [], lastStartedAt: isIso(b.lastStartedAt) ? (b.lastStartedAt as string) : undefined };
 
-  return { schemaVersion: SCHEMA_VERSION, profile, attempts, sessions, seedPriors, blitz };
+  const mockExams: MockExam[] = [];
+  for (const raw of Array.isArray(data.mockExams) ? (data.mockExams as Json[]) : []) {
+    const status = raw.status;
+    if (!isStr(raw.id) || !isStrArr(raw.questionIds) || !isIso(raw.startedAt) || !isIso(raw.deadline)) continue;
+    if (status !== "active" && status !== "completed" && status !== "abandoned") continue;
+    const answersIn = (raw.answers ?? {}) as Json;
+    const answers: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(answersIn)) if (isStrArr(v)) answers[k] = v;
+    mockExams.push({
+      id: raw.id,
+      examVersion: (EXAM_VERSIONS as readonly unknown[]).includes(raw.examVersion) ? (raw.examVersion as ExamVersion) : "SY0-701",
+      startedAt: raw.startedAt as string,
+      deadline: raw.deadline as string,
+      lastActiveAt: isIso(raw.lastActiveAt) ? (raw.lastActiveAt as string) : (raw.startedAt as string),
+      finishedAt: isIso(raw.finishedAt) ? (raw.finishedAt as string) : undefined,
+      status,
+      questionIds: raw.questionIds,
+      answers,
+      flagged: isStrArr(raw.flagged) ? raw.flagged : [],
+      current: clampInt(raw.current, 0, Math.max(0, raw.questionIds.length - 1), 0),
+    });
+  }
+
+  return { schemaVersion: SCHEMA_VERSION, profile, attempts, sessions, seedPriors, blitz, mockExams };
 }
 
 function clampInt(x: unknown, min: number, max: number, fallback: number): number {
@@ -174,6 +199,7 @@ export function createInitialData(seedPriors: Record<string, SeedPrior>, now: Da
     sessions: [],
     seedPriors: { ...seedPriors },
     blitz: { cleared: [] },
+    mockExams: [],
   };
 }
 
