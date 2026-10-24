@@ -95,6 +95,7 @@ describe("exam versions and the circuit", () => {
     const qmap = new Map(exam.questions.map((q) => [q.id, q]));
     const none = computeReadiness(exam.certification, exam.conceptIds, (id) => conceptDomain(id, "SY0-701"), new Map(), [], qmap);
     expect(none.coverage).toBe(0);
+    expect(none.completion).toBe(0);
     expect(none.ready).toBe(false);
     expect(none.passChance).toBeLessThan(0.05);
     expect(none.questionsToGo).toBeGreaterThan(200);
@@ -108,6 +109,8 @@ describe("exam versions and the circuit", () => {
     const m = computeMastery(atts, (id) => questionById.get(id), exam.conceptIds, {}, local(2026, 9, 30));
     const r = computeReadiness(exam.certification, exam.conceptIds, (id) => conceptDomain(id, "SY0-701"), m, atts, qmap);
     expect(r.coverage).toBeGreaterThan(0.85); // a few concepts only have drag-and-drop questions
+    expect(r.completion).toBeGreaterThan(0.85);
+    expect(r.completion).toBeLessThanOrEqual(1);
     expect(r.passChance).toBeGreaterThan(0.9);
     expect(r.ready).toBe(true);
     expect(r.questionsToGo).toBe(0);

@@ -12,7 +12,8 @@ export function CircuitCard({ detailed = false, className }: { detailed?: boolea
   const { start, message } = useStartSession();
   const r = derived.readiness;
   const pct = Math.round(r.passChance * 100);
-  const journey = r.answered + r.questionsToGo;
+  // One decimal so a good session visibly moves it.
+  const done = Math.floor(r.completion * 1000) / 10;
 
   return (
     <Card className={className} aria-labelledby="circuit-h">
@@ -27,9 +28,15 @@ export function CircuitCard({ detailed = false, className }: { detailed?: boolea
         {r.ready ? <Badge tone="success">Ready to book</Badge> : <Badge>Estimate, not an official score</Badge>}
       </div>
       <div className="my-3">
-        <ProgressBar value={journey ? r.answered : 0} max={journey || 1} label="Journey to ready" tone={r.ready ? "success" : "accent"} />
-        <p className="mt-1 text-xs tabular-nums text-muted">
-          {r.ready ? `${r.answered} questions done` : `${r.answered} done · about ${r.questionsToGo} to go`}
+        <div className="mb-1 flex items-baseline justify-between gap-2">
+          <span className="text-sm font-medium">Course completion</span>
+          <span className="text-lg font-semibold tabular-nums">{done}%</span>
+        </div>
+        <ProgressBar value={r.completion} max={1} label="Course completion" tone={r.completion >= 1 ? "success" : "accent"} />
+        <p className="mt-1 text-xs text-muted">
+          {r.completion >= 1
+            ? "Every topic cleared. You know this material."
+            : "Every topic you clear in the circuit or review moves this. 100% means every topic is cleared. Blitz doesn't count."}
         </p>
       </div>
       <dl className="grid grid-cols-2 gap-3 text-sm">

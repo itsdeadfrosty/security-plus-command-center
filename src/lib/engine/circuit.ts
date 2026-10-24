@@ -45,6 +45,12 @@ export interface Readiness {
   expectedScore: number;
   /** Exam-weighted share of concepts cleared, 0–1. */
   coverage: number;
+  /**
+   * Main-track completion, 0–1: of all the "knew it" answers needed to clear
+   * every topic, the share in hand. A miss resets that topic's run, so this can
+   * go down. 100% means every topic is cleared. Blitz never counts.
+   */
+  completion: number;
   totalConcepts: number;
   clearedConcepts: number;
   /** Questions answered so far on this exam's material. */
@@ -69,6 +75,8 @@ const CLEARED_KNOW = 0.95;
 /** Unknown questions still get some right by elimination. */
 const GUESS_CREDIT = 0.2;
 export const FIRST_TRY_WINDOW = 40;
+/** Clear goal for a topic not yet tried (matches the mastery model's three in a row). */
+const DEFAULT_CLEAR_GOAL = 3;
 
 function knowChance(m: ConceptMastery | undefined, prior: number): number {
   if (isCleared(m)) return CLEARED_KNOW;
@@ -117,6 +125,15 @@ export function computeReadiness(
     else d.notStarted++;
   }
   const weightWithContent = byDomain.filter((d) => d.total > 0).reduce((s, d) => s + d.weight, 0) || 1;
+  let steps = 0;
+  let stepsDone = 0;
+  for (const id of conceptIds) {
+    const m = mastery.get(id);
+    const goal = m?.clearGoal ?? DEFAULT_CLEAR_GOAL;
+    steps += goal;
+    stepsDone += isCleared(m) ? goal : Math.min(m?.streak ?? 0, goal);
+  }
+  const completion = steps ? stepsDone / steps : 0;
   const coverage = byDomain.reduce((s, d) => (d.total ? s + (d.weight / weightWithContent) * (d.cleared / d.total) : s), 0);
 
   // First exposure to each question in this exam, oldest first.
@@ -196,6 +213,7 @@ export function computeReadiness(
     passChance,
     expectedScore,
     coverage,
+    completion,
     totalConcepts,
     clearedConcepts,
     answered,
