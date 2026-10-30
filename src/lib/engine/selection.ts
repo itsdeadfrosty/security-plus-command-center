@@ -157,7 +157,31 @@ export function allocateByWeight(domains: { id: string; weight: number }[], tota
   return result;
 }
 
+/** A missed topic stays out of the way until this many more questions have been answered. */
+export const MISS_COOLDOWN = 10;
+
+/** Topics missed within the last MISS_COOLDOWN answers. */
+export function coolingConcepts(attempts: QuestionAttempt[], getQuestion: (id: string) => Question | undefined): Set<string> {
+  const recent = [...attempts].sort((a, b) => b.completedAt.localeCompare(a.completedAt)).slice(0, MISS_COOLDOWN);
+  const out = new Set<string>();
+  for (const a of recent) if (!a.isCorrect) for (const c of getQuestion(a.questionId)?.conceptIds ?? []) out.add(c);
+  return out;
+}
+
 export function selectQuestions(mode: StudyMode, ctx: SelectionContext, size = SESSION_SIZES[mode]): Question[] {
+  // Let a fresh miss rest for a while before asking about that topic again.
+  // Review waits it out; other modes fall back only if nothing else is left to ask.
+  const byId = new Map(ctx.questions.map((q) => [q.id, q]));
+  const cooling = coolingConcepts(ctx.attempts, (id) => byId.get(id));
+  if (cooling.size) {
+    const rested = ctx.questions.filter((q) => !q.conceptIds.some((c) => cooling.has(c)));
+    const picked = pickFor(mode, { ...ctx, questions: rested }, size);
+    if (picked.length || mode === "review") return picked;
+  }
+  return pickFor(mode, ctx, size);
+}
+
+function pickFor(mode: StudyMode, ctx: SelectionContext, size: number): Question[] {
   switch (mode) {
     case "circuit": {
       // Work through every concept not yet cleared; new ground gets a bonus so coverage keeps moving.
@@ -194,29 +218,6 @@ export function selectQuestions(mode: StudyMode, ctx: SelectionContext, size = S
       return interleave(picked);
     }
   }
-}
-
-/**
- * After a miss in practice, find a *different* question on the same concept to
- * retest later in the session. Returns undefined if none is available.
- */
-export function pickRetestQuestion(
-  missed: Question,
-  sessionQuestionIds: string[],
-  questionsByConcept: Map<string, Question[]>,
-  attempts: QuestionAttempt[],
-  now: Date,
-): Question | undefined {
-  const inSession = new Set(sessionQuestionIds);
-  const recent = new Set(
-    attempts.filter((a) => now.getTime() - new Date(a.completedAt).getTime() < DAY_MS).map((a) => a.questionId),
-  );
-  for (const conceptId of missed.conceptIds) {
-    const candidates = (questionsByConcept.get(conceptId) ?? []).filter((q) => !inSession.has(q.id));
-    const fresh = candidates.find((q) => !recent.has(q.id));
-    if (fresh) return fresh;
-  }
-  return undefined;
 }
 
 export interface Recommendation {

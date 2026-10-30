@@ -7,9 +7,9 @@ import { isAnswerCorrect } from "@/lib/engine/scoring";
 import { conceptById, conceptDomain, conceptObjective, examContent, questionById, questionDomain, seedPriors, type ExamContent } from "@/content/catalog";
 import { computeReadiness, type Readiness } from "@/lib/engine/circuit";
 import { computeMastery } from "@/lib/engine/mastery";
-import { pickRetestQuestion, recommendMode, reviewPriority, selectQuestions, type Recommendation } from "@/lib/engine/selection";
+import { MISS_COOLDOWN, recommendMode, reviewPriority, selectQuestions, type Recommendation } from "@/lib/engine/selection";
 import {
-  appendRetest,
+  dropUpcoming,
   completeSession,
   createSession,
   goTo as goToIndex,
@@ -199,8 +199,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const res = submitAnswer(s, question, selected, durationMs, t);
         let session = res.session;
         if (!res.attempt.isCorrect) {
-          const retest = pickRetestQuestion(question, session.questionIds, examContent(d.profile.examVersion).questionsByConcept, d.attempts, t);
-          if (retest) session = appendRetest(session, retest.id);
+          // Don't ask about the same topic again right away; it comes back once the cooldown has passed.
+          const missed = new Set(question.conceptIds);
+          session = dropUpcoming(session, (id) => !!getQuestion(id)?.conceptIds.some((c) => missed.has(c)), MISS_COOLDOWN);
         }
         return { session, attempts: [...d.attempts, res.attempt] };
       });

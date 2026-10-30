@@ -27,7 +27,7 @@ export function useStartSession() {
     }
     const s = startSession(mode, focusConceptIds);
     if (!s) {
-      setMessage(mode === "review" ? "Nothing is due for review right now. Try Quick or Mixed practice." : "No questions available for this selection.");
+      setMessage(mode === "review" ? "Nothing is due for review right now. Topics you just missed come back after 10 more questions. Run the circuit in the meantime." : "No questions available for this selection.");
       return;
     }
     setMessage(undefined);

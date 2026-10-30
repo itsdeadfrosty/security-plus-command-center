@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Flag, LogOut, RefreshCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Flag, LogOut } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { conceptById, questionById } from "@/content/catalog";
 import { canSubmit, parsePairs, partialScore, toggleSelection } from "@/lib/engine/scoring";
@@ -13,6 +13,7 @@ import { SessionResults } from "@/components/SessionResults";
 import { Button, ButtonLink, Card, cx } from "@/components/ui";
 import { MODE_INFO } from "@/components/useStart";
 import { GuessExplainer } from "@/components/GuessExplainer";
+import { PrimerChat } from "@/components/PrimerChat";
 
 export default function SessionPage() {
   const { data, derived } = useStore();
@@ -143,8 +144,6 @@ function SessionRunner({ session }: { session: StudySession }) {
     ? undefined
     : question.conceptIds.find((c) => derived.mastery.get(c)?.lastResult?.startsWith("incorrect"));
   const primer = missedConcept && primedFor !== qid ? conceptById.get(missedConcept) : undefined;
-  const retestAdded = existing && !existing.isCorrect && session.retestQuestionIds.length > 0 &&
-    session.retestQuestionIds.some((id) => session.questionIds.indexOf(id) > index && !session.answers[id]);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -181,7 +180,8 @@ function SessionRunner({ session }: { session: StudySession }) {
               <span className="font-medium">Not to be confused with {conceptById.get(c.conceptId)?.name ?? c.conceptId}:</span> {c.distinction}
             </p>
           ))}
-          <Button className="mt-4" variant="primary" onClick={() => setPrimedFor(qid)} autoFocus>
+          <PrimerChat concept={primer} />
+          <Button className="mt-4 block" variant="primary" onClick={() => setPrimedFor(qid)}>
             Got it, show the question <ArrowRight className="size-4" aria-hidden />
           </Button>
         </Card>
@@ -226,13 +226,6 @@ function SessionRunner({ session }: { session: StudySession }) {
         {existing && (
           <div ref={feedbackRef} tabIndex={-1} className="mt-5 space-y-4 outline-none" aria-live="polite">
             <Feedback question={question} selected={existing.selectedAnswerIds} correct={existing.isCorrect} showWhy={showWhy} onShowWhy={setShowWhy} />
-
-            {retestAdded && (
-              <p className="flex items-center gap-2 text-sm text-muted">
-                <RefreshCcw className="size-4 text-accent" aria-hidden />
-                A different scenario on this concept was added later in this session.
-              </p>
-            )}
 
             {askConfidence && (
               <fieldset className="rounded-xl border border-line p-3">

@@ -2,7 +2,6 @@ import type { Confidence, Question, QuestionAttempt, StudyMode, StudySession } f
 import { isAnswerCorrect } from "./scoring";
 import { newId } from "./time";
 
-export const MAX_RETESTS_PER_SESSION = 3;
 
 export function createSession(mode: StudyMode, questionIds: string[], now: Date): StudySession {
   const iso = now.toISOString();
@@ -56,13 +55,17 @@ export function setSessionConfidence(session: StudySession, questionId: string, 
   return { ...session, answers: { ...session.answers, [questionId]: { ...ans, confidence } } };
 }
 
-export function appendRetest(session: StudySession, questionId: string): StudySession {
-  if (session.retestQuestionIds.length >= MAX_RETESTS_PER_SESSION || session.questionIds.includes(questionId)) return session;
-  return {
-    ...session,
-    questionIds: [...session.questionIds, questionId],
-    retestQuestionIds: [...session.retestQuestionIds, questionId],
-  };
+/**
+ * Take unanswered questions out of the next `within` slots of the session, e.g.
+ * other questions on a topic the learner just missed. The current question stays.
+ */
+export function dropUpcoming(session: StudySession, drop: (questionId: string) => boolean, within: number): StudySession {
+  const at = session.currentQuestionIndex;
+  const questionIds = session.questionIds.filter(
+    (id, i) => i <= at || i > at + within || !!session.answers[id] || !drop(id),
+  );
+  if (questionIds.length === session.questionIds.length) return session;
+  return { ...session, questionIds, retestQuestionIds: session.retestQuestionIds.filter((id) => questionIds.includes(id)) };
 }
 
 export function goTo(session: StudySession, index: number, now: Date): StudySession {

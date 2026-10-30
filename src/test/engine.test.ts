@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { canSubmit, isAnswerCorrect, toggleSelection } from "@/lib/engine/scoring";
 import { computeMastery } from "@/lib/engine/mastery";
-import { allocateByWeight, isInReviewQueue, pickRetestQuestion, recommendMode, reviewPriority, selectQuestions } from "@/lib/engine/selection";
-import { appendRetest, createSession, resumeIndex, shuffledOptionIds, submitAnswer, MAX_RETESTS_PER_SESSION } from "@/lib/engine/session";
+import { allocateByWeight, coolingConcepts, isInReviewQueue, recommendMode, reviewPriority, selectQuestions } from "@/lib/engine/selection";
+import { createSession, dropUpcoming, resumeIndex, shuffledOptionIds, submitAnswer } from "@/lib/engine/session";
 import { allConcepts, examContent, questionById, questionDomain, seedPriors } from "@/content/catalog";
 
 const exam = examContent("SY0-701");
@@ -158,7 +158,12 @@ describe("question selection", () => {
   it("gives differentiated practice when XSS and SQL injection are both being missed", () => {
     const xssQ = questionsByConcept.get("xss")![0];
     const sqliQ = questionsByConcept.get("sqli")![0];
-    const atts = [attempt(xssQ, { correct: false, at: local(2026, 9, 25) }), attempt(sqliQ, { correct: false, at: local(2026, 9, 25) })];
+    // Ten answers on other topics since, so the misses have rested.
+    const since = allQuestions
+      .filter((q) => !q.conceptIds.some((c) => c === "xss" || c === "sqli"))
+      .slice(0, 10)
+      .map((q, i) => attempt(q, { correct: true, at: local(2026, 9, 25, 13, i) }));
+    const atts = [attempt(xssQ, { correct: false, at: local(2026, 9, 25) }), attempt(sqliQ, { correct: false, at: local(2026, 9, 25) }), ...since];
     const picked = selectQuestions("focused", { ...base, attempts: atts, mastery: mastery(atts) });
     expect(picked.some((q) => q.conceptIds.includes("xss") && q.conceptIds.includes("sqli"))).toBe(true);
   });
@@ -174,12 +179,15 @@ describe("question selection", () => {
     expect(alloc.get("4.0")).toBeGreaterThan(alloc.get("1.0")!);
   });
 
-  it("retests a missed concept with a different question", () => {
+  it("rests a missed topic for 10 answers before asking about it again", () => {
     const missed = questionsByConcept.get("ssrf")![0];
-    const retest = pickRetestQuestion(missed, [missed.id], questionsByConcept, [], now);
-    expect(retest).toBeDefined();
-    expect(retest!.id).not.toBe(missed.id);
-    expect(retest!.conceptIds).toContain("ssrf");
+    const others = allQuestions.filter((q) => !q.conceptIds.includes("ssrf")).slice(0, 10);
+    const at = (i: number) => new Date(now.getTime() - (20 - i) * 60_000).toISOString();
+    const miss = attempt(missed, { correct: false, at: at(0) });
+    const nine = others.slice(0, 9).map((q, i) => attempt(q, { correct: true, at: at(i + 1) }));
+    expect(coolingConcepts([miss, ...nine], (id) => questionById.get(id)).has("ssrf")).toBe(true);
+    const ten = [...nine, attempt(others[9], { correct: true, at: at(10) })];
+    expect(coolingConcepts([miss, ...ten], (id) => questionById.get(id)).has("ssrf")).toBe(false);
   });
 
   it("recommends a mode from performance", () => {
@@ -200,10 +208,10 @@ describe("study sessions", () => {
     expect(() => submitAnswer(s, qs[0], ["a"], 1, now)).toThrow();
   });
 
-  it("limits retests per session", () => {
-    let s = createSession("quick", [qs[0].id], now);
-    for (const q of allQuestions.slice(10, 20)) s = appendRetest(s, q.id);
-    expect(s.retestQuestionIds.length).toBe(MAX_RETESTS_PER_SESSION);
+  it("drops upcoming questions on a just-missed topic", () => {
+    const ids = allQuestions.slice(0, 5).map((q) => q.id);
+    const s = dropUpcoming(createSession("quick", ids, now), (id) => id === ids[0] || id === ids[3], 10);
+    expect(s.questionIds).toEqual([ids[0], ids[1], ids[2], ids[4]]);
   });
 
   it("keeps the same option order when a session is resumed", () => {
